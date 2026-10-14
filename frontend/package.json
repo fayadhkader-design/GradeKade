@@ -1,6 +1,32 @@
 {
-  "name": "gradekade-frontend", "version": "0.1.0", "private": true,
-  "scripts": {"dev": "next dev --hostname 127.0.0.1", "build": "next build", "start": "next start --hostname 127.0.0.1", "typecheck": "tsc --noEmit", "test": "vitest run", "test:e2e": "playwright test"},
-  "dependencies": {"next": "latest", "react": "latest", "react-dom": "latest", "lucide-react": "latest", "@fontsource/dm-sans": "latest"},
-  "devDependencies": {"typescript": "latest", "@types/node": "latest", "@types/react": "latest", "@types/react-dom": "latest", "tailwindcss": "latest", "@tailwindcss/postcss": "latest", "vitest": "latest", "@playwright/test": "latest"}
+  "name": "gradekade-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "format:check": "prettier --check src e2e *.ts *.json *.mjs"
+  },
+  "dependencies": {
+    "@fontsource/dm-sans": "5.3.0",
+    "lucide-react": "1.57.0",
+    "next": "16.4.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "prettier": "3.9.10",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "5.0.4"
+  }
 }

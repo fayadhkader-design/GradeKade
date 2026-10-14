@@ -1,12 +1,25 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Integer, JSON, String, UniqueConstraint, Uuid
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db import Base
 
 
 def now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Identity:
@@ -59,7 +72,9 @@ class QuestionTemplate(Identity, Base):
     auto_grade_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     __table_args__ = (
         UniqueConstraint("worksheet_template_id", "question_number"),
-        CheckConstraint("question_number > 0 AND x >= 0 AND y >= 0 AND width > 0 AND height > 0 AND x + width <= 1.000001 AND y + height <= 1.000001"),
+        CheckConstraint(
+            "question_number > 0 AND x >= 0 AND y >= 0 AND width > 0 AND height > 0 AND x + width <= 1.000001 AND y + height <= 1.000001"
+        ),
         CheckConstraint("answer_type IN ('integer','decimal','fraction')"),
     )
 
@@ -77,7 +92,9 @@ class WorksheetSubmission(Identity, Base):
     processing_metadata: Mapped[dict | None] = mapped_column(JSON)
     error: Mapped[str | None] = mapped_column(String(200))
     fixture_id: Mapped[str | None] = mapped_column(String(50))
-    __table_args__ = (CheckConstraint("status IN ('uploaded','processing','needs_review','completed','failed')"),)
+    __table_args__ = (
+        CheckConstraint("status IN ('uploaded','processing','needs_review','completed','failed')"),
+    )
 
 
 class QuestionSubmission(Identity, Base):
@@ -104,5 +121,7 @@ class QuestionSubmission(Identity, Base):
         CheckConstraint("system_grade IN ('correct','incorrect','uncertain')"),
         CheckConstraint("final_grade IS NULL OR final_grade IN ('correct','incorrect')"),
         CheckConstraint("review_status IN ('auto_accepted','needs_review','human_reviewed')"),
-        CheckConstraint("ocr_confidence >= 0 AND ocr_confidence <= 1 AND grading_confidence >= 0 AND grading_confidence <= 1"),
+        CheckConstraint(
+            "ocr_confidence >= 0 AND ocr_confidence <= 1 AND grading_confidence >= 0 AND grading_confidence <= 1"
+        ),
     )

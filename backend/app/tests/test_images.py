@@ -1,18 +1,19 @@
 import numpy as np
 import pytest
 from PIL import Image, ImageDraw
-from app.services.ingestion import ingest, png_bytes
-from app.services.cropping import crop_region, is_blank
+
 from app.services.alignment import align_submission_to_template
+from app.services.cropping import crop_region, is_blank
+from app.services.ingestion import ingest, png_bytes
 
 
 def test_ingest_and_crop():
     image = Image.new("RGB", (600, 800), "white")
     assert ingest(png_bytes(image)).size == (600, 800)
-    assert crop_region(image, .1, .1, .2, .2).size == (120, 160)
+    assert crop_region(image, 0.1, 0.1, 0.2, 0.2).size == (120, 160)
     assert is_blank(image)
     with pytest.raises(ValueError):
-        crop_region(image, .9, 0, .2, .1)
+        crop_region(image, 0.9, 0, 0.2, 0.1)
 
 
 def test_reject_input():

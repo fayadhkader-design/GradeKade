@@ -1,4 +1,5 @@
 """Exact, bounded numeric parsing. Never evaluate OCR as Python or symbolic code."""
+
 import re
 from fractions import Fraction
 from typing import Literal
@@ -38,6 +39,7 @@ def normalize_answer(raw: str, answer_type: AnswerType) -> str:
         return f"{value.numerator}/{value.denominator}"
     # Decimal input is finite; retain exact decimal digits, without float rounding.
     from decimal import Decimal, localcontext
+
     with localcontext() as context:
         context.prec = 220
         return format(Decimal(value.numerator) / Decimal(value.denominator), "f").rstrip("0").rstrip(".")

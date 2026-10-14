@@ -1,5 +1,6 @@
 import httpx
 import pytest
+
 from app.config import Settings
 from app.services.ocr import MathpixOCRProvider, MockOCRProvider, get_provider
 
@@ -10,7 +11,9 @@ def test_mock_never_reads_answer_key():
 
 
 def test_missing_keys_fall_back():
-    assert get_provider(Settings(ocr_provider="mathpix", mathpix_app_id="", mathpix_app_key="")).name == "mock"
+    assert (
+        get_provider(Settings(ocr_provider="mathpix", mathpix_app_id="", mathpix_app_key="")).name == "mock"
+    )
 
 
 def test_mathpix_request_and_result(monkeypatch):
@@ -18,13 +21,24 @@ def test_mathpix_request_and_result(monkeypatch):
         assert url == "https://api.mathpix.com/v3/text"
         assert kwargs["headers"]["app_key"] == "test-key"
         assert kwargs["json"]["src"].startswith("data:image/png;base64,")
-        return httpx.Response(200, request=httpx.Request("POST", "https://api.mathpix.com/v3/text"), json={"text": r"\frac{1}{2}", "confidence": .999})
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", "https://api.mathpix.com/v3/text"),
+            json={"text": r"\frac{1}{2}", "confidence": 0.999},
+        )
+
     monkeypatch.setattr(httpx, "post", post)
     result = MathpixOCRProvider("test-id", "test-key").recognize(b"png")
-    assert result.confidence == .999
+    assert result.confidence == 0.999
 
 
 def test_mathpix_errors_are_not_success(monkeypatch):
-    monkeypatch.setattr(httpx, "post", lambda *a, **k: httpx.Response(200, request=httpx.Request("POST", "https://api.mathpix.com/v3/text"), json={"error": "bad image"}))
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *a, **k: httpx.Response(
+            200, request=httpx.Request("POST", "https://api.mathpix.com/v3/text"), json={"error": "bad image"}
+        ),
+    )
     with pytest.raises(ValueError):
         MathpixOCRProvider("test-id", "test-key").recognize(b"png")

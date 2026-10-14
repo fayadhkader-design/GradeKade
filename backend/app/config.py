@@ -1,5 +1,6 @@
 from pathlib import Path
 from uuid import UUID
+
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

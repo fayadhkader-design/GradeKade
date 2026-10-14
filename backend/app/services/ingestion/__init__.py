@@ -1,5 +1,6 @@
-from io import BytesIO
 import warnings
+from io import BytesIO
+
 import pymupdf as fitz
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -22,7 +23,7 @@ def ingest(content: bytes, max_pixels: int = 20_000_000, min_dimension: int = 10
                 page = document[0]
                 if page.rect.width <= 0 or page.rect.height <= 0:
                     raise ValueError("Invalid PDF page dimensions")
-                scale = min(2, (max_pixels / (page.rect.width * page.rect.height)) ** .5)
+                scale = min(2, (max_pixels / (page.rect.width * page.rect.height)) ** 0.5)
                 pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
                 image = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
         else:
@@ -38,5 +39,11 @@ def ingest(content: bytes, max_pixels: int = 20_000_000, min_dimension: int = 10
         if image.width * image.height > max_pixels or min(image.size) < min_dimension:
             raise ValueError("Page must be at least 100px on each side and within the pixel limit")
         return image
-    except (UnidentifiedImageError, OSError, RuntimeError, Image.DecompressionBombWarning, Image.DecompressionBombError):
+    except (
+        UnidentifiedImageError,
+        OSError,
+        RuntimeError,
+        Image.DecompressionBombWarning,
+        Image.DecompressionBombError,
+    ):
         raise ValueError("File could not be decoded as a safe JPG, PNG, or PDF") from None
