@@ -1,0 +1,6 @@
+{
+  "name": "gradekade-frontend", "version": "0.1.0", "private": true,
+  "scripts": {"dev": "next dev --hostname 127.0.0.1", "build": "next build", "start": "next start --hostname 127.0.0.1", "typecheck": "tsc --noEmit", "test": "vitest run", "test:e2e": "playwright test"},
+  "dependencies": {"next": "latest", "react": "latest", "react-dom": "latest", "lucide-react": "latest", "@fontsource/dm-sans": "latest"},
+  "devDependencies": {"typescript": "latest", "@types/node": "latest", "@types/react": "latest", "@types/react-dom": "latest", "tailwindcss": "latest", "@tailwindcss/postcss": "latest", "vitest": "latest", "@playwright/test": "latest"}
+}
