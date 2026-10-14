@@ -1,12 +1,11 @@
 """Original synthetic worksheet assets. Run from backend: uv run python ../scripts/generate_samples.py."""
 import csv
-import hashlib
 import json
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from PIL import Image, ImageDraw, ImageFont
-from app.services.ingestion import png_bytes
+from app.services.ingestion import image_digest, png_bytes
 from app.services.alignment import align_submission_to_template
 from app.services.cropping import crop_region
 
@@ -54,7 +53,7 @@ blank_bytes, completed_bytes = png_bytes(blank), png_bytes(completed)
 (OUT / "completed.png").write_bytes(completed_bytes)
 blank.save(OUT / "blank.pdf", "PDF", resolution=144)
 (OUT / "template.json").write_text(json.dumps({"name": "Arithmetic Practice A", "questions": questions}, indent=2))
-(OUT / "manifest.json").write_text(json.dumps({"template_sha256": hashlib.sha256(blank_bytes).hexdigest(), "submission_sha256": hashlib.sha256(completed_bytes).hexdigest()}, indent=2))
+(OUT / "manifest.json").write_text(json.dumps({"template_sha256": image_digest(blank_bytes), "submission_sha256": image_digest(completed_bytes)}, indent=2))
 aligned = align_submission_to_template(blank, completed)
 assert aligned.metadata['verified'], aligned.metadata
 predictions, rows = {}, []
@@ -67,7 +66,7 @@ for index, (q, truth) in enumerate(zip(questions, actual)):
     confidence = .75 if index in {1, 6, 11, 14} else .999
     if not truth:
         confidence = 0
-    predictions[hashlib.sha256(data).hexdigest()] = {"raw_text": raw, "confidence": confidence}
+    predictions[image_digest(data)] = {"raw_text": raw, "confidence": confidence}
     rows.append(dict(image_file=f"images/{filename}", expected_answer=q['expected_answer'], student_actual_answer=truth, answer_type=q['answer_type']))
 for path in [OUT / "ocr_predictions.json", EVAL / "mock_predictions.json"]:
     path.write_text(json.dumps(predictions, indent=2))

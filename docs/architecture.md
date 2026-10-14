@@ -11,7 +11,7 @@ A local development application for arithmetic worksheets. Human review is a fir
 - **Ingestion**: bounded image/PDF validation and first-page rendering.
 - **Alignment**: ORB matches + RANSAC homography with geometric and inlier checks. Unverified alignment always forces human review; no silent high-confidence resize fallback.
 - **Cropping**: normalized rectangles on the aligned image. Preprocessing is gentle; full-resolution color crops retained.
-- **OCR**: provider protocol; mock is deliberately empty/uncertain for arbitrary uploads. A separately selected synthetic demo uses a fixture transcript bound to exact generated sample-file hashes. No answers are inferred from the answer key. Mathpix is opt-in; missing credentials fall back to clearly labeled mock, provider errors force review.
+- **OCR**: provider protocol; mock is deliberately empty/uncertain for arbitrary uploads. A separately selected synthetic demo uses a fixture transcript bound to exact generated sample-pixel hashes. No answers are inferred from the answer key. Mathpix is opt-in; missing credentials fall back to clearly labeled mock, provider errors force review.
 - **Normalization**: allowlisted numeric grammar and exact rational arithmetic. No evaluation of untrusted expressions, floating-point tolerance, or LLM decisions.
 - **Grading/routing**: preserve system prediction, effective confidence, routing reason, and human decision. Vendor confidence is an uncalibrated input, gated by alignment, parse validity, template policy, and blank detection.
 - **Review**: conditional updates prevent overwriting another review; score becomes final only when all answers have a final decision. Final decisions and recognized-text edits preserve original OCR.

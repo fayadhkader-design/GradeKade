@@ -1,4 +1,3 @@
-import hashlib
 import json
 from dataclasses import asdict
 from io import BytesIO
@@ -14,7 +13,7 @@ from app.models import QuestionSubmission, QuestionTemplate, WorksheetSubmission
 from app.services.alignment import align_submission_to_template
 from app.services.cropping import crop_region, is_blank
 from app.services.grading import grade_answer
-from app.services.ingestion import png_bytes
+from app.services.ingestion import image_digest, png_bytes
 from app.services.ocr import FixtureOCRProvider, OCRResult, get_provider
 from app.services.storage import LocalStorage
 
@@ -41,8 +40,8 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
     if submission.fixture_id:
         manifest = json.loads((SAMPLES / "manifest.json").read_text())
         if (
-            hashlib.sha256(original).hexdigest() != manifest["submission_sha256"]
-            or hashlib.sha256(template_bytes).hexdigest() != manifest["template_sha256"]
+            image_digest(original) != manifest["submission_sha256"]
+            or image_digest(template_bytes) != manifest["template_sha256"]
         ):
             raise ValueError("Synthetic OCR only supports the exact supplied demo pages")
         provider = FixtureOCRProvider(json.loads((SAMPLES / "ocr_predictions.json").read_text()))

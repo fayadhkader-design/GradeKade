@@ -94,14 +94,14 @@ npm run dev
 
 **Manual template setup:** download `sample_data/blank.png` (also linked in Templates), create a named template, drag boxes around at least ten answer regions, select each box, and enter its correct answer/type from `sample_data/answer_key.csv`. Save the key. Add a fictional student on Upload, select the template, and upload `sample_data/completed.png` or your own generic practice page. Leave synthetic OCR off for arbitrary images. Mock mode routes every answer to review, where the crop and answer key are sufficient to make a decision.
 
-Synthetic mode accepts only the exact supplied blank/completed PNGs. Its transcript is bound to crop hashes; moving boxes changes the crops and causes unmatched answers to require review. PDF/JPEG transformations do not preserve synthetic hashes. Sample answers are **printed synthetic responses**, not real handwriting. The sample is a workflow fixture, not an OCR benchmark.
+Synthetic mode accepts only the exact supplied blank/completed PNGs. Its transcript is bound to decoded-pixel crop hashes; moving boxes changes the crops and causes unmatched answers to require review. PDF/JPEG transformations do not preserve synthetic hashes. Sample answers are **printed synthetic responses**, not real handwriting. The sample is a workflow fixture, not an OCR benchmark.
 
 ## OCR modes
 
 | Mode | Behavior |
 | --- | --- |
 | `OCR_PROVIDER=mock` (default) | Returns empty text and confidence 0 for arbitrary uploads; no fabricated handwriting recognition. All answers require review. |
-| Explicit “Use synthetic OCR” on upload | Uses SHA-256-bound observations for the supplied original sample only. Separate from the answer key. Includes wrong, ambiguous and blank responses. |
+| Explicit “Use synthetic OCR” on upload | Uses Decoded-pixel SHA-256-bound observations for the supplied original sample only. Separate from the answer key. Includes wrong, ambiguous and blank responses. |
 | `OCR_PROVIDER=mathpix` plus both credentials | Sends answer crops to Mathpix `/v3/text` and uses returned text/confidence. No keys in source or browser. Provider errors route to review. |
 | Mathpix selected but credentials missing | Falls back to empty mock mode. UI and result metadata show the actual provider. |
 

@@ -47,3 +47,13 @@ def ingest(content: bytes, max_pixels: int = 20_000_000, min_dimension: int = 10
         Image.DecompressionBombError,
     ):
         raise ValueError("File could not be decoded as a safe JPG, PNG, or PDF") from None
+
+
+def image_digest(content: bytes) -> str:
+    """Stable across PNG encoders: bind fixtures to decoded RGB pixels and dimensions."""
+    import hashlib
+
+    with Image.open(BytesIO(content)) as image:
+        rgb = image.convert("RGB")
+        payload = f"{rgb.width}x{rgb.height}:".encode() + rgb.tobytes()
+        return hashlib.sha256(payload).hexdigest()

@@ -22,7 +22,7 @@ from app.models import (
 )
 from app.schemas import QuestionsSave, ReviewCreate, StudentCreate
 from app.services.cropping import crop_region
-from app.services.ingestion import ingest, png_bytes
+from app.services.ingestion import image_digest, ingest, png_bytes
 from app.services.ocr import get_provider
 from app.services.pipeline import SAMPLES, finalize_submission, process_submission
 from app.services.storage import LocalStorage
@@ -332,14 +332,11 @@ async def create_submission(
     image = await read_page(file)
     content = png_bytes(image)
     if synthetic_demo:
-        import hashlib
-
         manifest = json.loads((SAMPLES / "manifest.json").read_text())
         template = owned(db, WorksheetTemplate, worksheet_template_id)
         if (
-            hashlib.sha256(content).hexdigest() != manifest["submission_sha256"]
-            or hashlib.sha256(storage.read(template.template_image_path)).hexdigest()
-            != manifest["template_sha256"]
+            image_digest(content) != manifest["submission_sha256"]
+            or image_digest(storage.read(template.template_image_path)) != manifest["template_sha256"]
         ):
             raise HTTPException(422, "Synthetic demo requires the supplied blank and completed sample pages")
     submission = add_submission(

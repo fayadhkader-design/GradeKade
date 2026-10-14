@@ -38,3 +38,17 @@ def test_alignment_of_feature_rich_page():
     result = align_submission_to_template(image, image.rotate(2, fillcolor="white"))
     assert result.metadata["verified"]
     assert result.image.size == image.size
+
+
+def test_fixture_digest_is_independent_of_png_compression():
+    from io import BytesIO
+
+    from app.services.ingestion import image_digest
+
+    image = Image.new("RGB", (200, 300), "white")
+    ImageDraw.Draw(image).text((30, 30), "42", fill="black")
+    compact = png_bytes(image)
+    out = BytesIO()
+    image.save(out, format="PNG", compress_level=0)
+    assert compact != out.getvalue()
+    assert image_digest(compact) == image_digest(out.getvalue())

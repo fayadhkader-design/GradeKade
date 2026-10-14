@@ -8,6 +8,7 @@ from typing import Protocol
 import httpx
 
 from app.config import Settings
+from app.services.ingestion import image_digest
 
 
 @dataclass(frozen=True)
@@ -39,9 +40,8 @@ class FixtureOCRProvider:
         self.predictions = predictions
 
     def recognize(self, image: bytes) -> OCRResult:
-        import hashlib
 
-        prediction = self.predictions.get(hashlib.sha256(image).hexdigest(), {})
+        prediction = self.predictions.get(image_digest(image), {})
         return OCRResult(prediction.get("raw_text", ""), prediction.get("confidence", 0.0))
 
 
