@@ -9,7 +9,7 @@ BACKEND = Path(__file__).resolve().parents[2]
 
 
 def test_migrate_empty_sqlite_database(tmp_path):
-    url = f"sqlite:///{tmp_path / 'schema.db'}"
+    url = f"sqlite:///{tmp_path / 'new' / 'schema.db'}"
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
         cwd=BACKEND,

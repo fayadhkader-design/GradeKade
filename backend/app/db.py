@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from sqlalchemy import create_engine, event
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import settings
@@ -11,7 +12,9 @@ class Base(DeclarativeBase):
 
 
 if settings.database_url.startswith("sqlite"):
-    Path("data").mkdir(exist_ok=True)
+    database_file = make_url(settings.database_url).database
+    if database_file and database_file != ":memory:":
+        Path(database_file).parent.mkdir(parents=True, exist_ok=True)
 engine = create_engine(
     settings.database_url,
     connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {},

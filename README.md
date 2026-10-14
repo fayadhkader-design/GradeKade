@@ -74,7 +74,7 @@ cd ..
 ./scripts/dev.sh
 ```
 
-The included database credentials are for a loopback-only local demo. An existing PostgreSQL database can be used through `DATABASE_URL`. Supabase is not required, and no Supabase project has been created. SQLite and PostgreSQL use the same models/migration; PostgreSQL SQL generation is tested, but a live PostgreSQL instance was unavailable on the implementation machine. Concurrent workloads should use PostgreSQL rather than SQLite.
+The included database credentials are for a loopback-only local demo. An existing PostgreSQL database can be used through `DATABASE_URL`. Supabase is not required, and no Supabase project has been created. SQLite and PostgreSQL use the same models/migration; PostgreSQL SQL generation and a live PostgreSQL grading/review integration test pass in GitHub CI; the implementation machine uses SQLite because its Docker daemon was unavailable. Concurrent workloads should use PostgreSQL rather than SQLite.
 
 To run the services separately:
 
