@@ -10,7 +10,7 @@ def png_bytes(image: Image.Image) -> bytes:
     return out.getvalue()
 
 
-def ingest(content: bytes, max_pixels: int = 20_000_000) -> Image.Image:
+def ingest(content: bytes, max_pixels: int = 20_000_000, min_dimension: int = 100) -> Image.Image:
     """Decode actual file contents, not filename or caller-supplied MIME."""
     if not content:
         raise ValueError("Choose a nonempty JPG, PNG, or PDF file")
@@ -35,7 +35,7 @@ def ingest(content: bytes, max_pixels: int = 20_000_000) -> Image.Image:
                         raise ValueError("Image exceeds the pixel limit")
                     source.load()
                     image = ImageOps.exif_transpose(source).convert("RGB")
-        if image.width * image.height > max_pixels or min(image.size) < 100:
+        if image.width * image.height > max_pixels or min(image.size) < min_dimension:
             raise ValueError("Page must be at least 100px on each side and within the pixel limit")
         return image
     except (UnidentifiedImageError, OSError, RuntimeError, Image.DecompressionBombWarning, Image.DecompressionBombError):
