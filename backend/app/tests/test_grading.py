@@ -60,3 +60,24 @@ def test_invalid_confidence(confidence):
 
 def test_unparseable_is_uncertain():
     assert grade_answer("8?", "8", "integer", 1).system_grade == "uncertain"
+
+
+@pytest.mark.parametrize(
+    "raw,kind,want",
+    [
+        ("７２", "integer", "72"),
+        ("72.\n", "integer", "72"),
+        ("½", "fraction", "1/2"),
+        ("−½", "fraction", "-1/2"),
+        ("⅜", "fraction", "3/8"),
+        ("０．５０", "decimal", "0.5"),
+    ],
+)
+def test_handwriting_unicode_and_harmless_ocr_formatting(raw, kind, want):
+    assert normalize_answer(raw, kind) == want
+
+
+@pytest.mark.parametrize("raw", ["1½", "42\n47", "42 or 47", "1 1/2", "42=42"])
+def test_never_choose_between_multiple_answers(raw):
+    with pytest.raises(ValueError):
+        normalize_answer(raw, "fraction")

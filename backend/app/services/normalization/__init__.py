@@ -1,6 +1,7 @@
 """Exact, bounded numeric parsing. Never evaluate OCR as Python or symbolic code."""
 
 import re
+import unicodedata
 from fractions import Fraction
 from typing import Literal
 
@@ -14,7 +15,35 @@ def parse_answer(raw: str, answer_type: AnswerType) -> Fraction:
         raise ValueError("Unsupported answer type")
     if not raw or len(raw) > 100:
         raise ValueError("Empty or oversized answer")
-    text = raw.strip().replace("−", "-").replace("–", "-")
+    # Expand single-glyph vulgar fractions before compatibility normalization.
+    vulgar = {
+        "½": "1/2",
+        "⅓": "1/3",
+        "⅔": "2/3",
+        "¼": "1/4",
+        "¾": "3/4",
+        "⅕": "1/5",
+        "⅖": "2/5",
+        "⅗": "3/5",
+        "⅘": "4/5",
+        "⅙": "1/6",
+        "⅚": "5/6",
+        "⅛": "1/8",
+        "⅜": "3/8",
+        "⅝": "5/8",
+        "⅞": "7/8",
+    }
+    stripped = raw.strip()
+    sign = ""
+    if stripped.startswith(("-", "−", "+")):
+        sign, stripped = stripped[0], stripped[1:].strip()
+    if stripped in vulgar:
+        stripped = sign + vulgar[stripped]
+    else:
+        if any(glyph in raw for glyph in vulgar):
+            raise ValueError("Mixed or ambiguous fractions are unsupported")
+        stripped = raw.strip()
+    text = unicodedata.normalize("NFKC", stripped).replace("−", "-").replace("–", "-").replace("⁄", "/")
     # Only remove harmless spacing around a sign/slash; '1 2' must not become '12'.
     text = re.sub(r"^([+-])\s+", r"\1", text)
     text = re.sub(r"\s*/\s*", "/", text)
