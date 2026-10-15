@@ -947,7 +947,8 @@ kbd {
 .results-layout .section-bar {
   margin-top: 0;
 }
-.sr-only {
+.sr-only,
+input.sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
