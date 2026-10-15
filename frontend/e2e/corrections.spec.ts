@@ -141,6 +141,21 @@ test("phone correction rounds go 17/20 to 19/20 to 20/20 with intact history", a
   await expect(
     q20.getByRole("heading", { name: "Attempt 3 · Correction 2" }),
   ).toBeVisible();
+  await q20.locator("img").last().scrollIntoViewIfNeeded();
+  await expect
+    .poll(() =>
+      q20
+        .locator("img")
+        .evaluateAll((images) =>
+          images.every(
+            (image) =>
+              (image as HTMLImageElement).complete &&
+              (image as HTMLImageElement).naturalWidth > 0,
+          ),
+        ),
+    )
+    .toBeTruthy();
+  await page.evaluate(() => window.scrollTo(0, 0));
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
