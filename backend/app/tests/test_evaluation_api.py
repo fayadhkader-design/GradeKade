@@ -1,9 +1,11 @@
 import json
 from io import BytesIO
 from zipfile import ZipFile
+
 from PIL import Image
-from app.tests.test_api import setup, upload
+
 from app.services.ingestion import png_bytes
+from app.tests.test_api import setup, upload
 
 
 def test_truth_export_preserves_ai_and_rejects_fixture_as_real(client):
@@ -64,3 +66,53 @@ def test_unusable_page_requests_retake_without_ocr(client, monkeypatch):
     assert "Retake this page" in page["error"]
     assert page["answers"] == []
     assert len(api.get("/evaluation/page-failures").json()) == 1
+
+
+def test_mathpix_contract_runs_through_page_pipeline_without_live_credentials(client, monkeypatch):
+    import httpx
+
+    from app.services import pipeline
+    from app.services.ocr import MathpixOCRProvider
+
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(kwargs)
+        assert set(kwargs["json"]) == {
+            "src",
+            "formats",
+            "math_inline_delimiters",
+            "include_line_data",
+            "metadata",
+        }
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={"text": "42", "confidence": 0.9999, "line_data": [{"text": "42"}]},
+        )
+
+    monkeypatch.setattr(httpx, "post", post)
+    monkeypatch.setattr(pipeline, "get_provider", lambda config: MathpixOCRProvider("test-id", "test-key"))
+    api, _ = client
+    ids = setup(api)
+    submission = upload(api, ids, synthetic=False)
+    result = api.post(f"/submissions/{submission['id']}/process").json()
+    assert len(calls) == 20
+    assert result["processing"]["ocr_mode"] == "REAL"
+    assert result["processing"]["data_origin"] == "synthetic"
+    outcomes = {a["decision"] for a in result["answers"]}
+    assert {"AUTO_CORRECT", "AUTO_INCORRECT", "NEEDS_REVIEW"} <= outcomes
+    assert result["answers"][0]["evidence"]["selected_variants"] == ["color"]
+    answer_id = result["answers"][0]["id"]
+    assert (
+        api.post(
+            f"/question-submissions/{answer_id}/ground-truth",
+            json={
+                "actual_answer": "42",
+                "transcription_status": "readable",
+                "verified_grade": "correct",
+                "source": "real_handwriting",
+            },
+        ).status_code
+        == 422
+    )

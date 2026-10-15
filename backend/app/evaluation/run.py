@@ -7,12 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.config import settings
+from app.evaluation.report import report
 from app.services.cropping import is_blank
 from app.services.grading import grade_answer
 from app.services.ingestion import ingest
 from app.services.normalization import answers_equivalent, normalize_answer
 from app.services.ocr import FixtureOCRProvider, OCRProvider, get_provider
-from app.evaluation.report import report
 
 DEFAULT_DATA = Path(__file__).resolve().parents[3] / "evaluation"
 
@@ -61,6 +61,8 @@ def evaluate(dataset: Path, provider: OCRProvider, threshold: float) -> Evaluati
                 row["answer_type"],
                 result.confidence,
                 threshold,
+                alignment_verified=provider.name == "synthetic_fixture"
+                or row.get("alignment_verified") == "True",
                 blank=is_blank(image),
             )
             if decision.review_status == "auto_accepted":
@@ -103,6 +105,8 @@ def evaluate_records(dataset, provider=None, threshold=0.995):
                 row["answer_type"],
                 correct_threshold=threshold,
                 incorrect_threshold=max(threshold, settings.auto_reject_confidence_threshold),
+                alignment_verified=provider.name == "synthetic_fixture"
+                or row.get("alignment_verified") == "True",
                 blank=is_blank(image),
             )
             actual = row["student_actual_answer"]
@@ -166,7 +170,14 @@ def main():
             parser.error(
                 "No real-handwriting records recognized by a real provider. Synthetic/mock results are ineligible."
             )
-    metrics = report(rows)
+    pages_path = args.dataset / "page_records.json"
+    pages = (
+        json.loads(pages_path.read_text()) if args.provider == "recorded" and pages_path.exists() else None
+    )
+    if pages is not None and args.require_real:
+        eligible = {r["worksheet_id"] for r in rows}
+        pages = [p for p in pages if p["worksheet_id"] in eligible]
+    metrics = report(rows, pages)
     metrics["evaluation_mode"] = args.provider
     metrics["real_handwriting_real_ocr_answers"] = sum(
         r.get("source") == "real_handwriting" and r.get("ocr_provider") == "mathpix" for r in rows

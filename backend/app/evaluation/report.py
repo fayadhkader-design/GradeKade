@@ -5,6 +5,7 @@ Unlabeled answers contribute to coverage, never accuracy denominators.
 
 from collections import defaultdict
 from math import sqrt
+
 from app.services.normalization import normalize_answer
 
 
@@ -78,7 +79,7 @@ def summarize(rows):
     }
 
 
-def report(rows):
+def report(rows, pages=None):
     by_type = defaultdict(list)
     by_confidence = defaultdict(list)
     cohorts = defaultdict(list)
@@ -96,7 +97,7 @@ def report(rows):
         )
         by_confidence[bucket].append(row)
         cohorts[f"{row.get('source', 'unknown')}/{row.get('ocr_provider', 'unknown')}"].append(row)
-    return {
+    result = {
         **summarize(rows),
         "by_answer_type": {k: summarize(v) for k, v in by_type.items()},
         "by_confidence_bucket": {k: summarize(v) for k, v in by_confidence.items()},
@@ -109,3 +110,18 @@ def report(rows):
             "No aggregate of mixed synthetic/mock/real cohorts establishes real OCR accuracy.",
         ],
     }
+
+    if pages is not None:
+        known = [p for p in pages if p.get("alignment_verified") is not None]
+        result.update(
+            total_pages=len(pages),
+            failed_pages=sum(p.get("status") == "failed" for p in pages),
+            alignment_failure_rate=ratio(sum(not p["alignment_verified"] for p in known), len(known)),
+            alignment_denominator=len(known),
+            poor_photo_pages=sum(p.get("photo_usable") is False for p in pages),
+        )
+        result["notes"] = [n for n in result["notes"] if not n.startswith("Alignment rates")]
+        result["notes"].append(
+            "Alignment failure rate uses unique pages with alignment measured; photo failures before alignment are counted separately."
+        )
+    return result

@@ -16,8 +16,8 @@ from app.services.cropping import crop_region, is_blank, prepare_variants
 from app.services.grading import grade_evidence
 from app.services.ingestion import image_digest, png_bytes
 from app.services.ocr import FixtureOCRProvider, OCRResult, get_provider
-from app.services.storage import LocalStorage
 from app.services.quality import assess_photo
+from app.services.storage import LocalStorage
 
 SAMPLES = Path(__file__).resolve().parents[3] / "sample_data"
 
@@ -38,7 +38,9 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
         submission.processing_metadata = {**(submission.processing_metadata or {}), **metadata, "stage": name}
         db.commit()
 
-    stage("aligning")
+    manifest = json.loads((SAMPLES / "manifest.json").read_text())
+    synthetic_pixels = image_digest(original) in {manifest["submission_sha256"], manifest["template_sha256"]}
+    stage("aligning", data_origin="synthetic" if synthetic_pixels else "unknown")
     quality = assess_photo(Image.open(BytesIO(original)), settings.photo_blur_minimum)
     stage("aligning", photo_quality=quality)
     if not quality["usable"]:
@@ -119,6 +121,7 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
                 else:
                     ocr = provider.recognize(contents[variant])
                     from dataclasses import replace
+
                     from app.services.normalization import normalize_answer
 
                     try:

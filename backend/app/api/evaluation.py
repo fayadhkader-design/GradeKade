@@ -13,11 +13,11 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 
 from app.api import routes
-from app.api.routes import DB, owned_question, answer_json
+from app.api.routes import DB, answer_json, owned_question
 from app.config import settings
 from app.evaluation.report import report
 from app.models import EvaluationAnnotation, QuestionSubmission, QuestionTemplate, WorksheetSubmission, now
-from app.services.normalization import normalize_answer, answers_equivalent
+from app.services.normalization import answers_equivalent, normalize_answer
 
 router = APIRouter()
 
@@ -84,7 +84,11 @@ def records(db):
                 "student_actual_answer": truth.actual_answer if truth else None,
                 "transcription_status": truth.transcription_status if truth else "unverified",
                 "verified_grade": verified,
-                "source": "synthetic" if page.fixture_id else truth.source if truth else "unknown",
+                "source": "synthetic"
+                if page.fixture_id or (page.processing_metadata or {}).get("data_origin") == "synthetic"
+                else truth.source
+                if truth
+                else "unknown",
                 "raw_ocr_text": answer.raw_ocr_text,
                 "normalized_answer": answer.normalized_answer,
                 "ocr_confidence": evidence.get("provider_confidence", answer.ocr_confidence),
@@ -104,6 +108,39 @@ def records(db):
             }
         )
     return result
+
+
+def page_records(db):
+    pages = db.scalars(
+        select(WorksheetSubmission).where(
+            WorksheetSubmission.organization_id == settings.organization_id,
+            WorksheetSubmission.status != "uploaded",
+        )
+    )
+    return [
+        {
+            "worksheet_id": str(p.id),
+            "status": p.status,
+            "source": "synthetic"
+            if p.fixture_id or (p.processing_metadata or {}).get("data_origin") == "synthetic"
+            else "unknown",
+            "alignment_verified": (p.alignment_metadata or {}).get("verified"),
+            "photo_usable": (p.processing_metadata or {}).get("photo_quality", {}).get("usable"),
+        }
+        for p in pages
+    ]
+
+
+def scoped_pages(db, rows, source):
+    pages = page_records(db)
+    if source == "all":
+        return pages
+    if source == "synthetic":
+        return [p for p in pages if p["source"] == "synthetic"]
+    if source == "unknown":
+        return [p for p in pages if p["source"] == "unknown"]
+    ids = {r["worksheet_id"] for r in rows}
+    return [p for p in pages if p["worksheet_id"] in ids]
 
 
 @router.get("/evaluation")
@@ -134,7 +171,13 @@ def evaluation(
                 else None,
             }
         )
-    return {"report": report(rows), "items": details, "total": len(rows), "offset": offset, "limit": limit}
+    return {
+        "report": report(rows, scoped_pages(db, rows, source)),
+        "items": details,
+        "total": len(rows),
+        "offset": offset,
+        "limit": limit,
+    }
 
 
 @router.post("/question-submissions/{answer_id}/ground-truth")
@@ -142,7 +185,9 @@ def verify(answer_id: UUID, payload: TruthCreate, db: DB):
     answer, page = owned_question(db, answer_id)
     if page.status not in {"completed", "needs_review"}:
         raise HTTPException(409, "Process the page first")
-    if page.fixture_id and payload.source != "synthetic":
+    if (
+        page.fixture_id or (page.processing_metadata or {}).get("data_origin") == "synthetic"
+    ) and payload.source != "synthetic":
         raise HTTPException(422, "Synthetic fixture answers cannot be labeled real handwriting")
     question = db.get(QuestionTemplate, answer.question_template_id)
     if payload.transcription_status == "readable":
@@ -222,7 +267,8 @@ def export(db: DB, source: Literal["all", "real_handwriting", "synthetic", "unkn
         writer.writeheader()
         writer.writerows(rows)
         archive.writestr("ground_truth.csv", output.getvalue())
-        archive.writestr("report.json", json.dumps(report(rows), indent=2))
+        archive.writestr("page_records.json", json.dumps(scoped_pages(db, rows, source), indent=2))
+        archive.writestr("report.json", json.dumps(report(rows, scoped_pages(db, rows, source)), indent=2))
         archive.writestr(
             "README.txt",
             "Contains answer crops, not full pages or student names. Inspect pixels for identifiers before sharing. UUIDs retain local linkage. Source and OCR provider identify synthetic/mock/real cohorts. Ground truth is independent of AI predictions. Missing truth is excluded from accuracy denominators.\n",
