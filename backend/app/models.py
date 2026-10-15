@@ -79,6 +79,17 @@ class QuestionTemplate(Identity, Base):
     )
 
 
+class Booklet(Identity, Base):
+    __tablename__ = "booklets"
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    student_id: Mapped[UUID] = mapped_column(ForeignKey("students.id"))
+    page_count: Mapped[int] = mapped_column(Integer)
+    capture_seconds: Mapped[float] = mapped_column(Float, default=0)
+    synthetic_demo: Mapped[bool] = mapped_column(Boolean, default=False)
+    manual_baseline_seconds: Mapped[float | None] = mapped_column(Float)
+    __table_args__ = (CheckConstraint("page_count >= 1 AND page_count <= 30 AND capture_seconds >= 0"),)
+
+
 class WorksheetSubmission(Identity, Base):
     __tablename__ = "worksheet_submissions"
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
@@ -92,8 +103,18 @@ class WorksheetSubmission(Identity, Base):
     processing_metadata: Mapped[dict | None] = mapped_column(JSON)
     error: Mapped[str | None] = mapped_column(String(200))
     fixture_id: Mapped[str | None] = mapped_column(String(50))
+    booklet_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("booklets.id", name="fk_submission_booklet"), index=True
+    )
+    page_number: Mapped[int | None] = mapped_column(Integer)
+    processing_seconds: Mapped[float | None] = mapped_column(Float)
     __table_args__ = (
         CheckConstraint("status IN ('uploaded','processing','needs_review','completed','failed')"),
+        UniqueConstraint("booklet_id", "page_number", name="uq_booklet_page"),
+        CheckConstraint(
+            "(booklet_id IS NULL AND page_number IS NULL) OR (booklet_id IS NOT NULL AND page_number > 0)",
+            name="ck_booklet_page",
+        ),
     )
 
 
@@ -114,6 +135,7 @@ class QuestionSubmission(Identity, Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reviewed_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
     reviewed_answer: Mapped[str | None] = mapped_column(String(100))
+    review_seconds: Mapped[float | None] = mapped_column(Float)
     routing_reason: Mapped[str] = mapped_column(String(100))
     ocr_provider: Mapped[str] = mapped_column(String(40))
     __table_args__ = (
