@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api import routes
+from app.api.corrections import workflow_json
 from app.api.routes import DB, owned, read_page, submission_json
 from app.config import settings
 from app.models import (
@@ -21,6 +22,7 @@ from app.models import (
     WorksheetTemplate,
 )
 from app.schemas import BaselineCreate, BookletCreate
+from app.services.corrections import assignment_state, round_answers
 from app.services.ingestion import image_digest, png_bytes
 from app.services.pipeline import SAMPLES
 
@@ -39,6 +41,9 @@ def booklet_json(db, booklet):
         .where(WorksheetSubmission.booklet_id == booklet.id)
     ).all()
     complete = len(pages) == booklet.page_count and all(p.status == "completed" for p in pages)
+    workflow = workflow_json(db, booklet)
+    state = assignment_state(db, booklet)
+    active_answers = round_answers(db, state["active"].id) if state["active"] else []
 
     def utc(value):
         return value if value.tzinfo else value.replace(tzinfo=UTC)
@@ -65,18 +70,13 @@ def booklet_json(db, booklet):
         "page_count": booklet.page_count,
         "uploaded_pages": len(pages),
         "processed_pages": processed,
-        "status": "completed"
-        if complete
-        else "needs_review"
-        if processed == booklet.page_count
-        else "in_progress",
+        "status": workflow["status"],
+        "workflow": workflow,
         "answers_total": len(answers),
         "auto_graded": auto,
-        "waiting": waiting,
-        "correct": sum(a.final_grade == "correct" for a in answers),
-        "score_percent": round(100 * sum(a.final_grade == "correct" for a in answers) / len(answers), 1)
-        if complete and answers
-        else None,
+        "waiting": waiting + sum(a.review_status == "needs_review" for a in active_answers),
+        "correct": workflow["current_correct"],
+        "score_percent": workflow["current_accuracy"],
         "synthetic_demo": booklet.synthetic_demo,
         "created_at": booklet.created_at,
         "pages": [submission_json(db, p, False) for p in pages],

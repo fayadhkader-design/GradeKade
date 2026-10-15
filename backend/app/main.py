@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.booklets import router as booklet_router
+from app.api.corrections import router as correction_router
 from app.api.evaluation import router as evaluation_router
 from app.api.routes import ensure_demo_identity, router
 from app.config import settings
@@ -53,3 +54,5 @@ app.include_router(router)
 app.include_router(booklet_router)
 
 app.include_router(evaluation_router)
+
+app.include_router(correction_router)

@@ -55,7 +55,7 @@ def test_order_retry_review_scope_and_observed_timing(client):
         )
         assert response.status_code == 200, response.text
     final = api.get(f"/booklets/{booklet['id']}").json()
-    assert final["status"] == "completed" and final["score_percent"] == 85
+    assert final["status"] == "needs_correction" and final["score_percent"] == 85
     assert final["timing"]["review_seconds"] == 15 and final["timing"]["mean_review_seconds"] == 1.5
     assert len(api.get(f"/review-queue?booklet_id={other['id']}").json()) == 5
     final = api.post(f"/booklets/{booklet['id']}/baseline", json={"seconds": 60}).json()
