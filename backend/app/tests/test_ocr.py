@@ -42,3 +42,50 @@ def test_mathpix_errors_are_not_success(monkeypatch):
     )
     with pytest.raises(ValueError):
         MathpixOCRProvider("test-id", "test-key").recognize(b"png")
+
+
+def test_missing_confidence_remains_unknown(monkeypatch):
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *a, **k: httpx.Response(
+            200, request=httpx.Request("POST", "https://api.mathpix.com/v3/text"), json={"text": "７２"}
+        ),
+    )
+    result = MathpixOCRProvider("id", "key").recognize_answer(b"png", "integer")
+    assert result.provider_confidence is None
+    assert result.normalized_candidate == "72"
+
+
+def test_failure_result_never_contains_provider_response_or_credentials(monkeypatch):
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *a, **k: httpx.Response(
+            401,
+            request=httpx.Request("POST", "https://api.mathpix.com/v3/text"),
+            json={"error": "sensitive text"},
+        ),
+    )
+    result = MathpixOCRProvider("id", "secret").recognize_answer(b"png", "integer")
+    assert result.error == "ocr_provider_error"
+    assert result.raw_text == ""
+    assert "secret" not in str(result)
+
+
+def test_transient_retry_and_privacy_option(monkeypatch):
+    calls = []
+
+    def post(*args, **kwargs):
+        calls.append(kwargs)
+        assert kwargs["json"]["metadata"] == {"improve_mathpix": False}
+        assert "expected_answer" not in kwargs["json"]
+        return httpx.Response(
+            503 if len(calls) == 1 else 200,
+            request=httpx.Request("POST", "https://api.mathpix.com/v3/text"),
+            json={"text": "42", "confidence": 0.999},
+        )
+
+    monkeypatch.setattr(httpx, "post", post)
+    assert MathpixOCRProvider("id", "key").recognize_answer(b"png", "integer").raw_text == "42"
+    assert len(calls) == 2
