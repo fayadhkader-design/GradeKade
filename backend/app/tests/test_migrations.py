@@ -106,8 +106,23 @@ def test_booklet_migration_preserves_existing_grades(tmp_path):
                 stamp,
             ),
         )
+    migrate("0003")
+    with sqlite3.connect(tmp_path / "legacy.db") as db:
+        db.execute(
+            "INSERT INTO evaluation_annotations (id,created_at,question_submission_id,actual_answer,transcription_status,verified_grade,source,annotation_seconds,verified_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (f"{7:032x}", stamp, ids[5], "42", "readable", "correct", "synthetic", 1.2, stamp),
+        )
+        prior_answer = db.execute("SELECT * FROM question_submissions").fetchone()
+        prior_annotation = db.execute("SELECT * FROM evaluation_annotations").fetchone()
     migrate("head")
     with sqlite3.connect(tmp_path / "legacy.db") as db:
+        assert db.execute("SELECT * FROM question_submissions").fetchone()[:-1] == prior_answer
+        assert db.execute("SELECT * FROM evaluation_annotations").fetchone() == prior_annotation
+        assert db.execute("SELECT initial_question_submission_id FROM question_submissions").fetchone() == (
+            None,
+        )
+        assert db.execute("SELECT COUNT(*) FROM correction_rounds").fetchone() == (0,)
+
         assert db.execute("SELECT status,booklet_id,page_number FROM worksheet_submissions").fetchone() == (
             "completed",
             None,
