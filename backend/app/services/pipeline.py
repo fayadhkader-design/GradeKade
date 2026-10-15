@@ -2,6 +2,7 @@ import json
 from dataclasses import asdict
 from io import BytesIO
 from pathlib import Path
+from time import monotonic
 
 import httpx
 from PIL import Image
@@ -11,11 +12,12 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import QuestionSubmission, QuestionTemplate, WorksheetSubmission, WorksheetTemplate, now
 from app.services.alignment import align_submission_to_template
-from app.services.cropping import crop_region, is_blank
-from app.services.grading import grade_answer
+from app.services.cropping import crop_region, is_blank, prepare_variants
+from app.services.grading import grade_evidence
 from app.services.ingestion import image_digest, png_bytes
 from app.services.ocr import FixtureOCRProvider, OCRResult, get_provider
 from app.services.storage import LocalStorage
+from app.services.quality import assess_photo
 
 SAMPLES = Path(__file__).resolve().parents[3] / "sample_data"
 
@@ -31,6 +33,21 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
         raise ValueError("Configure at least one answer box before processing")
     original = storage.read(submission.uploaded_file_path)
     template_bytes = storage.read(template.template_image_path)
+
+    def stage(name, **metadata):
+        submission.processing_metadata = {**(submission.processing_metadata or {}), **metadata, "stage": name}
+        db.commit()
+
+    stage("aligning")
+    quality = assess_photo(Image.open(BytesIO(original)), settings.photo_blur_minimum)
+    stage("aligning", photo_quality=quality)
+    if not quality["usable"]:
+        submission.status, submission.error = (
+            "failed",
+            "Retake this page. The photo is too dark, blurred, empty, or low resolution.",
+        )
+        stage("failed", retake_required=True)
+        return
     alignment = align_submission_to_template(
         Image.open(BytesIO(template_bytes)).convert("RGB"), Image.open(BytesIO(original)).convert("RGB")
     )
@@ -45,49 +62,113 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
         ):
             raise ValueError("Synthetic OCR only supports the exact supplied demo pages")
         provider = FixtureOCRProvider(json.loads((SAMPLES / "ocr_predictions.json").read_text()))
-    submission.processing_metadata = {
-        "ocr_provider": provider.name,
-        "threshold": settings.auto_grade_confidence_threshold,
-        "confidence_calibrated": False,
-        "pipeline_version": "0.1",
-    }
+    stage(
+        "cropping",
+        ocr_provider=provider.name,
+        ocr_mode="REAL" if provider.name == "mathpix" else "SYNTHETIC" if submission.fixture_id else "MOCK",
+        threshold=settings.auto_grade_confidence_threshold,
+        reject_threshold=settings.auto_reject_confidence_threshold,
+        confidence_calibrated=False,
+        pipeline_version="0.2",
+    )
+    if (
+        not alignment.metadata["verified"]
+        or alignment.metadata["confidence"] < settings.alignment_minimum_confidence
+    ):
+        submission.status, submission.error = (
+            "failed",
+            "Retake this page. Keep the entire worksheet visible, flat, and well lit.",
+        )
+        stage("failed", retake_required=True)
+        return
     db.execute(delete(QuestionSubmission).where(QuestionSubmission.worksheet_submission_id == submission.id))
+    prepared = []
+    selected = [v.strip() for v in settings.ocr_variants.split(",")]
+    if not selected or any(v not in {"color", "grayscale", "contrast"} for v in selected):
+        raise ValueError("Unknown OCR preprocessing variant")
+    selected = list(dict.fromkeys(selected))
     for question in questions:
         crop = crop_region(alignment.image, question.x, question.y, question.width, question.height)
-        content = png_bytes(crop)
-        key = storage.save(content)
-        provider_error = False
-        try:
-            ocr = provider.recognize(content)
-        except (httpx.HTTPError, ValueError, TypeError, KeyError):
-            ocr, provider_error = OCRResult("", 0), True
-        decision = grade_answer(
-            ocr.raw_text,
+        variants = prepare_variants(
+            alignment.image,
+            question.x,
+            question.y,
+            question.width,
+            question.height,
+            settings.crop_padding_pixels,
+        )
+        # The exact fixture is keyed to unpadded pixels; it must never masquerade as real OCR.
+        if submission.fixture_id:
+            variants, chosen = {"color": crop}, ["color"]
+        else:
+            chosen = selected
+        contents = {name: png_bytes(img) for name, img in variants.items()}
+        paths = {name: storage.save(content) for name, content in contents.items()}
+        prepared.append((question, crop, storage.save(png_bytes(crop)), contents, paths, chosen))
+    stage("recognizing", questions_total=len(prepared), questions_recognized=0)
+    recognized = []
+    deadline = monotonic() + 110
+    for index, (question, crop, key, contents, paths, chosen) in enumerate(prepared):
+        results = []
+        for variant in chosen:
+            try:
+                if monotonic() >= deadline:
+                    ocr = OCRResult("", None, error="page_ocr_budget_exhausted")
+                elif hasattr(provider, "recognize_answer"):
+                    ocr = provider.recognize_answer(contents[variant], question.answer_type)
+                else:
+                    ocr = provider.recognize(contents[variant])
+                    from dataclasses import replace
+                    from app.services.normalization import normalize_answer
+
+                    try:
+                        candidate = normalize_answer(ocr.raw_text, question.answer_type)
+                    except ValueError:
+                        candidate = None
+                    ocr = replace(ocr, normalized_candidate=candidate)
+            except (httpx.HTTPError, ValueError, TypeError, KeyError):
+                ocr = OCRResult("", None, error="ocr_provider_error")
+            results.append(ocr)
+        recognized.append((question, crop, key, paths, chosen, results))
+        stage("recognizing", questions_recognized=index + 1)
+    stage("grading")
+    for question, crop, key, paths, chosen, results in recognized:
+        decision, evidence = grade_evidence(
+            results,
             question.expected_answer,
             question.answer_type,
-            ocr.confidence,
-            settings.auto_grade_confidence_threshold,
-            alignment.metadata["verified"],
-            question.auto_grade_enabled,
-            is_blank(crop),
+            correct_threshold=settings.auto_grade_confidence_threshold,
+            incorrect_threshold=settings.auto_reject_confidence_threshold,
+            alignment_verified=alignment.metadata["verified"],
+            alignment_confidence=alignment.metadata["confidence"],
+            alignment_minimum=settings.alignment_minimum_confidence,
+            auto_grade_enabled=question.auto_grade_enabled,
+            blank=is_blank(crop),
         )
-        record = asdict(decision)
-        if provider_error:
-            record["routing_reason"] = "ocr_provider_error"
+        evidence.update(
+            variants={name: asdict(result) for name, result in zip(chosen, results)},
+            crop_variants=paths,
+            selected_variants=chosen,
+            padding_pixels=0 if submission.fixture_id else settings.crop_padding_pixels,
+            provider_confidence=results[0].confidence,
+            synthetic=bool(submission.fixture_id),
+        )
         db.add(
             QuestionSubmission(
                 worksheet_submission_id=submission.id,
                 question_template_id=question.id,
                 crop_image_path=key,
-                raw_ocr_text=ocr.raw_text,
+                raw_ocr_text=results[0].raw_text,
                 expected_answer=question.expected_answer,
-                ocr_confidence=ocr.confidence,
+                ocr_confidence=results[0].confidence or 0,
                 ocr_provider=provider.name,
-                **record,
+                evidence=evidence,
+                **asdict(decision),
             )
         )
     db.flush()
     finalize_submission(db, submission)
+    submission.processing_metadata = {**submission.processing_metadata, "stage": submission.status}
 
 
 def finalize_submission(db: Session, submission: WorksheetSubmission):
