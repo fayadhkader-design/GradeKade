@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -9,13 +10,19 @@ from app.api.evaluation import router as evaluation_router
 from app.api.routes import ensure_demo_identity, router
 from app.config import settings
 from app.db import SessionLocal
+from app.services.ocr import get_provider
 
 
 @asynccontextmanager
 async def lifespan(app):
     with SessionLocal() as db:
         ensure_demo_identity(db)
+    provider = get_provider(settings)
+    if provider.name == "paddle" and not provider.initialize():
+        logging.getLogger(__name__).warning(provider.diagnostic)
     yield
+    if provider.name == "paddle":
+        provider.close()
 
 
 app = FastAPI(title="GradeKade", version="0.1.0", lifespan=lifespan)

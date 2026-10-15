@@ -15,7 +15,7 @@ from app.services.alignment import align_submission_to_template
 from app.services.cropping import crop_region, is_blank, prepare_variants
 from app.services.grading import grade_evidence
 from app.services.ingestion import image_digest, png_bytes
-from app.services.ocr import FixtureOCRProvider, OCRResult, get_provider
+from app.services.ocr import REAL_OCR_PROVIDERS, FixtureOCRProvider, OCRResult, get_provider
 from app.services.quality import assess_photo
 from app.services.storage import LocalStorage
 
@@ -73,11 +73,18 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
     stage(
         "cropping",
         ocr_provider=provider.name,
-        ocr_mode="REAL" if provider.name == "mathpix" else "SYNTHETIC" if submission.fixture_id else "MOCK",
+        ocr_mode="REAL"
+        if provider.name in REAL_OCR_PROVIDERS
+        else "SYNTHETIC"
+        if submission.fixture_id
+        else "MOCK",
         threshold=settings.auto_grade_confidence_threshold,
         reject_threshold=settings.auto_reject_confidence_threshold,
         confidence_calibrated=False,
-        pipeline_version="0.2",
+        pipeline_version="0.3",
+        ocr_available=getattr(provider, "available", True),
+        ocr_diagnostic=getattr(provider, "diagnostic", None),
+        experimental_auto_grade=provider.name == "paddle" and settings.paddle_allow_experimental_auto_grade,
     )
     if (
         not alignment.metadata["verified"]
@@ -126,6 +133,7 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
     deadline = monotonic() + 110
     for index, (question, crop, key, contents, paths, chosen) in enumerate(prepared):
         results = []
+        ocr_started = monotonic()
         for variant in chosen:
             try:
                 if monotonic() >= deadline:
@@ -146,10 +154,12 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
             except (httpx.HTTPError, ValueError, TypeError, KeyError):
                 ocr = OCRResult("", None, error="ocr_provider_error")
             results.append(ocr)
-        recognized.append((question, crop, key, paths, chosen, results))
+        recognized.append((question, crop, key, paths, chosen, results, monotonic() - ocr_started))
         stage("recognizing", questions_recognized=index + 1)
     stage("grading")
-    for question, crop, key, paths, chosen, results in recognized:
+    total_inference_seconds = 0.0
+    timed_inference_answers = 0
+    for question, crop, key, paths, chosen, results, ocr_seconds in recognized:
         decision, evidence = grade_evidence(
             results,
             question.expected_answer,
@@ -161,8 +171,18 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
             alignment_minimum=settings.alignment_minimum_confidence,
             auto_grade_enabled=question.auto_grade_enabled,
             blank=is_blank(crop),
+            allow_unscored_agreement=provider.name == "paddle"
+            and settings.paddle_allow_experimental_auto_grade,
+            min_agreeing_variants=settings.paddle_min_agreeing_variants,
         )
+        inference_seconds = sum(r.provider_metadata.get("inference_seconds", 0) for r in results)
+        timed_variants = sum("inference_seconds" in r.provider_metadata for r in results)
+        total_inference_seconds += inference_seconds
+        timed_inference_answers += bool(timed_variants)
         evidence.update(
+            ocr_seconds=ocr_seconds,
+            inference_seconds=inference_seconds if timed_variants else None,
+            variants_run=sum(r.error != "page_ocr_budget_exhausted" for r in results),
             variants={name: asdict(result) for name, result in zip(chosen, results)},
             crop_variants=paths,
             selected_variants=chosen,
@@ -185,7 +205,17 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
         )
     db.flush()
     finalize_submission(db, submission)
-    submission.processing_metadata = {**submission.processing_metadata, "stage": submission.status}
+    submission.processing_metadata = {
+        **submission.processing_metadata,
+        "stage": submission.status,
+        "total_ocr_seconds": sum(row[-1] for row in recognized),
+        "average_ocr_seconds_per_answer": sum(row[-1] for row in recognized) / len(recognized),
+        "total_inference_seconds": total_inference_seconds if timed_inference_answers else None,
+        "timed_inference_answers": timed_inference_answers,
+        "average_inference_seconds_per_answer": total_inference_seconds / timed_inference_answers
+        if timed_inference_answers
+        else None,
+    }
 
 
 def finalize_submission(db: Session, submission: WorksheetSubmission):
