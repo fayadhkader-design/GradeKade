@@ -1932,3 +1932,10 @@ kbd {
     padding: 24px 16px;
   }
 }
+.ocr-mode-banner {
+  padding: 10px 20px;
+  background: var(--paper, #faf8f3);
+  color: var(--ink, #20313c);
+  border-bottom: 1px solid var(--line, #d9ddd7);
+  font-size: 13px;
+}

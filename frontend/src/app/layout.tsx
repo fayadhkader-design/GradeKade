@@ -4,6 +4,7 @@ import "@fontsource/dm-sans/500.css";
 import "@fontsource/dm-sans/600.css";
 import "@fontsource/dm-sans/700.css";
 import "./globals.css";
+import OCRMode from "@/components/OCRMode";
 export const viewport: Viewport = {
   themeColor: "#1c5946",
   viewportFit: "cover",
@@ -18,7 +19,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <OCRMode />
+        {children}
+      </body>
     </html>
   );
 }
