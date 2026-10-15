@@ -44,8 +44,12 @@ export type Answer = {
   routing_reason: string;
   ocr_provider: string;
   student_name?: string;
+  page_number?: number | null;
 };
 export type Submission = {
+  booklet_id?: string | null;
+  page_number?: number | null;
+  processing_seconds?: number | null;
   id: string;
   student_name: string;
   template_name: string;
@@ -107,3 +111,34 @@ export const post = (body?: unknown): RequestInit => ({
   method: "POST",
   ...(body === undefined ? {} : { body: JSON.stringify(body) }),
 });
+
+export type Booklet = {
+  id: string;
+  student_id: string;
+  student_name: string;
+  page_count: number;
+  uploaded_pages: number;
+  processed_pages: number;
+  status: string;
+  answers_total: number;
+  auto_graded: number;
+  waiting: number;
+  correct: number;
+  score_percent: number | null;
+  synthetic_demo: boolean;
+  created_at: string;
+  pages: Submission[];
+  timing: {
+    end_to_end_seconds: number | null;
+    capture_seconds: number;
+    processing_seconds: number;
+    review_seconds: number;
+    timed_reviews: number;
+    human_reviews: number;
+    mean_review_seconds: number | null;
+    observed_capture_and_review_seconds: number;
+    manual_baseline_seconds: number | null;
+    difference_seconds: number | null;
+    comparable: boolean;
+  };
+};
