@@ -101,7 +101,9 @@ def records(db):
                 "human_final_grade": answer.final_grade if answer.review_status == "human_reviewed" else None,
                 "review_seconds": truth.annotation_seconds if truth else answer.review_seconds,
                 "ocr_error": any(v.get("error") for v in evidence.get("variants", {}).values()),
-                "alignment_verified": (page.alignment_metadata or {}).get("verified"),
+                "alignment_verified": (page.alignment_metadata or {}).get(
+                    "accepted_for_cropping", (page.alignment_metadata or {}).get("verified")
+                ),
                 "alignment": page.alignment_metadata,
                 "preprocessing_variants": evidence.get("selected_variants", []),
                 "routing_reason": answer.routing_reason,
@@ -124,7 +126,9 @@ def page_records(db):
             "source": "synthetic"
             if p.fixture_id or (p.processing_metadata or {}).get("data_origin") == "synthetic"
             else "unknown",
-            "alignment_verified": (p.alignment_metadata or {}).get("verified"),
+            "alignment_verified": (p.alignment_metadata or {}).get(
+                "accepted_for_cropping", (p.alignment_metadata or {}).get("verified")
+            ),
             "photo_usable": (p.processing_metadata or {}).get("photo_quality", {}).get("usable"),
         }
         for p in pages

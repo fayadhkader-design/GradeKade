@@ -54,7 +54,13 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
         Image.open(BytesIO(template_bytes)).convert("RGB"), Image.open(BytesIO(original)).convert("RGB")
     )
     submission.aligned_file_path = storage.save(png_bytes(alignment.image))
-    submission.alignment_metadata = alignment.metadata
+    submission.alignment_metadata = {
+        **alignment.metadata,
+        "accepted_for_cropping": bool(
+            alignment.metadata["verified"]
+            and alignment.metadata["confidence"] >= settings.alignment_minimum_confidence
+        ),
+    }
     provider = get_provider(settings)
     if submission.fixture_id:
         manifest = json.loads((SAMPLES / "manifest.json").read_text())
@@ -90,7 +96,15 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
         raise ValueError("Unknown OCR preprocessing variant")
     selected = list(dict.fromkeys(selected))
     for question in questions:
-        crop = crop_region(alignment.image, question.x, question.y, question.width, question.height)
+        try:
+            crop = crop_region(alignment.image, question.x, question.y, question.width, question.height)
+        except ValueError:
+            submission.status, submission.error = (
+                "failed",
+                "Retake this page or fix the template. Answer regions fall outside valid bounds.",
+            )
+            stage("failed", retake_required=True)
+            return
         variants = prepare_variants(
             alignment.image,
             question.x,
