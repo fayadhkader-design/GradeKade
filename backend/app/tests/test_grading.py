@@ -77,7 +77,7 @@ def test_handwriting_unicode_and_harmless_ocr_formatting(raw, kind, want):
     assert normalize_answer(raw, kind) == want
 
 
-@pytest.mark.parametrize("raw", ["1½", "42\n47", "42 or 47", "1 1/2", "42=42"])
+@pytest.mark.parametrize("raw", ["1½", "42\n47", "42 or 47", "1 1/2", "42=42", "4²"])
 def test_never_choose_between_multiple_answers(raw):
     with pytest.raises(ValueError):
         normalize_answer(raw, "fraction")

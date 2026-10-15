@@ -43,6 +43,8 @@ def parse_answer(raw: str, answer_type: AnswerType) -> Fraction:
         if any(glyph in raw for glyph in vulgar):
             raise ValueError("Mixed or ambiguous fractions are unsupported")
         stripped = raw.strip()
+    if any(unicodedata.category(char) == "No" for char in stripped):
+        raise ValueError("Ambiguous numeric glyph")
     text = unicodedata.normalize("NFKC", stripped).replace("−", "-").replace("–", "-").replace("⁄", "/")
     # Only remove harmless spacing around a sign/slash; '1 2' must not become '12'.
     text = re.sub(r"^([+-])\s+", r"\1", text)
