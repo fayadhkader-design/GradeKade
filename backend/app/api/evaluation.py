@@ -79,6 +79,11 @@ def records(db):
                 "worksheet_id": str(page.id),
                 "question_id": str(question.id),
                 "question_number": question.question_number,
+                "initial_question_submission_id": str(answer.initial_question_submission_id)
+                if answer.initial_question_submission_id
+                else None,
+                "correction_round_id": str(page.correction_round_id) if page.correction_round_id else None,
+                "source_submission_id": str(page.source_submission_id) if page.source_submission_id else None,
                 "answer_type": question.answer_type,
                 "expected_answer": answer.expected_answer,
                 "student_actual_answer": truth.actual_answer if truth else None,
@@ -250,6 +255,9 @@ def export(db: DB, source: Literal["all", "real_handwriting", "synthetic", "unkn
             "worksheet_id",
             "question_id",
             "question_number",
+            "initial_question_submission_id",
+            "correction_round_id",
+            "source_submission_id",
             "image_file",
             "expected_answer",
             "student_actual_answer",

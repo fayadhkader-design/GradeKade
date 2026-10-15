@@ -123,6 +123,9 @@ def answer_json(db, answer):
     return {
         "id": str(answer.id),
         "submission_id": str(answer.worksheet_submission_id),
+        "initial_question_submission_id": str(answer.initial_question_submission_id)
+        if answer.initial_question_submission_id
+        else None,
         "question_number": question.question_number,
         "crop_url": f"/api/question-submissions/{answer.id}/crop",
         "answer_type": question.answer_type,
