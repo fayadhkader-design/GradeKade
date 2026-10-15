@@ -20,7 +20,7 @@ uv run alembic upgrade head
 uv run alembic check
 ~~~
 
-SQLite migration temporarily disables foreign-key enforcement only on the migration connection, uses batch recreation for added foreign keys, restores checks and validates foreign keys afterward. PostgreSQL migrations use ordinary ALTER TABLE. Back up demo data before migration. A downgrade removes correction links/tables and is not a history-preserving way to roll back an assignment with corrections.
+SQLite migration temporarily disables foreign-key enforcement only on the migration connection, uses batch recreation for added foreign keys, restores checks and validates foreign keys afterward. PostgreSQL migrations use ordinary ALTER TABLE. Back up demo data before migration. Downgrade is refused while correction history exists, protecting original attempts and their links. Restore a pre-correction backup if you intentionally need to revert that schema.
 
 ## API
 

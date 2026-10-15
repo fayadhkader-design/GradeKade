@@ -132,3 +132,54 @@ def test_booklet_migration_preserves_existing_grades(tmp_path):
             "SELECT final_grade,raw_ocr_text,review_seconds FROM question_submissions"
         ).fetchone() == ("correct", "42", None)
         assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+
+
+def test_correction_downgrade_refuses_to_discard_attempt_history(tmp_path):
+    from sqlalchemy.orm import Session
+
+    from app.db import Base
+    from app.models import Booklet, CorrectionRound, Organization, Student
+
+    url = f"sqlite:///{tmp_path / 'history.db'}"
+    engine = create_engine(url)
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        org = Organization(name="Migration demo")
+        db.add(org)
+        db.flush()
+        student = Student(organization_id=org.id, first_name="Demo")
+        db.add(student)
+        db.flush()
+        booklet = Booklet(organization_id=org.id, student_id=student.id, page_count=1)
+        db.add(booklet)
+        db.flush()
+        db.add(
+            CorrectionRound(
+                organization_id=org.id, booklet_id=booklet.id, round_number=1, unresolved_before=1
+            )
+        )
+        db.commit()
+    engine.dispose()
+    env = {**os.environ, "DATABASE_URL": url}
+    stamped = subprocess.run(
+        [sys.executable, "-m", "alembic", "stamp", "head"],
+        cwd=BACKEND,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert stamped.returncode == 0, stamped.stderr
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "downgrade", "0003"],
+        cwd=BACKEND,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0 and "Cannot downgrade while correction history exists" in result.stderr
+    import sqlite3
+
+    with sqlite3.connect(tmp_path / "history.db") as db:
+        assert db.execute("SELECT COUNT(*) FROM correction_rounds").fetchone() == (1,)

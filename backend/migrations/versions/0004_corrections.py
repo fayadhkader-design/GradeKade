@@ -106,6 +106,12 @@ def upgrade():
 
 
 def downgrade():
+    if op.get_context().as_sql:
+        raise RuntimeError("Correction downgrade requires an online history check")
+    if op.get_bind().scalar(sa.text("SELECT COUNT(*) FROM correction_rounds")):
+        raise RuntimeError(
+            "Cannot downgrade while correction history exists; restore a pre-correction backup instead"
+        )
     op.drop_table("correction_page_slots")
     op.drop_table("correction_targets")
     with op.batch_alter_table("question_submissions") as batch:
