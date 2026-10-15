@@ -78,6 +78,8 @@ def grade_evidence(
     quality_usable=True,
     auto_grade_enabled=True,
     blank=False,
+    allow_unscored_agreement=False,
+    min_agreeing_variants=3,
 ):
     """A rule score: never increase vendor confidence through correlated variants."""
     candidates = [r.normalized_candidate for r in results]
@@ -88,6 +90,13 @@ def grade_evidence(
     agreement = bool(candidates) and candidates[0] is not None and len(set(candidates)) == 1
     known_scores = [r.confidence for r in results if r.confidence is not None]
     score = min(known_scores) if len(known_scores) == len(results) and known_scores else 0
+    if not 2 <= min_agreeing_variants <= 3:
+        raise ValueError("Agreement policy requires two or three variants")
+    unscored = bool(results) and all(r.confidence is None for r in results)
+    agreement_rule_score = min(1.0, len(results) / min_agreeing_variants) if agreement else 0.0
+    experimental = allow_unscored_agreement and unscored
+    if experimental:
+        score = agreement_rule_score
     gates = alignment_verified and alignment_confidence >= alignment_minimum and quality_usable
     predicted_correct = agreement and answers_equivalent(candidates[0], expected, answer_type)
     decision = grade_answer(
@@ -97,7 +106,7 @@ def grade_evidence(
         score if agreement and not ambiguous and not failures else 0,
         correct_threshold if predicted_correct else incorrect_threshold,
         gates,
-        auto_grade_enabled,
+        auto_grade_enabled and (not experimental or len(results) >= min_agreeing_variants),
         blank,
     )
     reason = (
@@ -142,6 +151,11 @@ def grade_evidence(
         "correct_threshold": correct_threshold,
         "incorrect_threshold": incorrect_threshold,
         "confidence_calibrated": False,
-        "strategy": "minimum_vendor_score_with_evidence_gates_v1",
+        "strategy": "experimental_unscored_variant_agreement_v1"
+        if experimental
+        else "minimum_vendor_score_with_evidence_gates_v1",
+        "experimental_auto_grade": experimental,
+        "agreement_rule_score": agreement_rule_score if unscored else None,
+        "required_agreeing_variants": min_agreeing_variants if experimental else None,
     }
     return decision, evidence
