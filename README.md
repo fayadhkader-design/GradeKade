@@ -108,6 +108,7 @@ Synthetic mode accepts only the exact supplied blank/completed PNGs. Its transcr
 | `OCR_PROVIDER=mock` (default) | Returns empty text and confidence 0 for arbitrary uploads; no fabricated handwriting recognition. All answers require review. |
 | Explicit “Use synthetic OCR” on upload | Uses Decoded-pixel SHA-256-bound observations for the supplied original sample only. Separate from the answer key. Includes wrong, ambiguous and blank responses. |
 | `OCR_PROVIDER=mathpix` plus both credentials | Sends answer crops to Mathpix `/v3/text` and uses returned text/confidence. No keys in source or browser. Provider errors route to review. |
+| OCR_PROVIDER=paddle | Local PP-FormulaNet-S CPU inference; null provider confidence, review by default, optional experimental variant agreement. |
 | Mathpix selected but credentials missing | Falls back to empty mock mode. UI and result metadata show the actual provider. |
 
 The Mathpix adapter follows the [official image OCR API](https://docs.mathpix.com/reference/post-v3-text). Its full-page integration and HTTP contract are tested with simulated provider responses; live paid OCR has **not** been exercised. Requests set metadata.improve_mathpix=false; account-level vendor settings can override this flag. See the [official privacy documentation](https://docs.mathpix.com/concepts/privacy). Enabling it transmits worksheet crops to that vendor; review vendor privacy/retention terms before using real records.
@@ -124,6 +125,33 @@ MATHPIX_APP_KEY=your-app-key
 
 Restart FastAPI from backend/. The global banner must say **REAL OCR · Mathpix**. Leave synthetic OCR off for photographs. Set OCR_PROVIDER=mock and restart to return to mock mode. Keys stay backend-only and ignored by Git. Missing either key visibly falls back to MOCK; the evaluation CLI refuses that fallback for configured real runs.
 
+## Free Local OCR with PaddleOCR
+
+PP-FormulaNet-S recognizes answer crops locally on CPU, with no paid API key. Install into a separate **Python 3.12** environment to avoid conflicting OpenCV distributions:
+
+~~~bash
+cd backend
+uv venv --python 3.12 .venv-paddle
+uv pip install --python .venv-paddle/bin/python -r requirements-paddle.txt
+# First invocation downloads the model:
+uv run python -m app.evaluation.paddle_smoke_test ../evaluation/images/answer-01.png --answer-type integer
+~~~
+
+Set OCR_PROVIDER=paddle in backend/.env and restart FastAPI from backend/. The UI shows REAL OCR · PaddleOCR, or a visible UNAVAILABLE diagnostic if initialization fails. No API credentials are needed. The normal backend remains in backend/.venv; the local model runs in a persistent isolated CPU process.
+
+Allow at least 3 GB free. Published model storage is about 224 MB; packages and extracted caches need additional space. Internet is required for installation/initial model download. An explicit PADDLE_MODEL_DIR supports cached/offline operation. Windows uses .venv-paddle/Scripts/python.exe. Linux x86_64 and macOS Apple Silicon have upstream CPU wheels; verify the pinned combination on the target platform.
+
+The formula API exposes no answer-level probability: provider confidence stays null and automatic grading is off by default. For a deliberate agreement-based benchmark, set OCR_VARIANTS=color,grayscale,contrast and PADDLE_ALLOW_EXPERIMENTAL_AUTO_GRADE=true (three agreeing variants required by default). The rule score is not calibrated probability. These correlated variants may repeat the same mistake.
+
+CPU inference time/variant count are stored per answer and aggregated per worksheet; no live speed is claimed yet. Installation and model loading were deferred by the user due to disk space. Switch back with OCR_PROVIDER=mock, or OCR_PROVIDER=mathpix plus its credentials, then restart.
+
+~~~bash
+uv run python -m app.evaluation.run --dataset /absolute/private/dataset --provider paddle --output ../work/paddle-run --json
+uv run python -m app.evaluation.run --dataset ../work/paddle-run --provider recorded --require-real --json
+~~~
+
+See [Paddle installation, offline operation, confidence policy and comparison protocol](docs/paddle-ocr.md) for settings, known failure modes and the next handwriting experiment.
+
 ## Environment variables
 
 Backend reads `backend/.env` when launched from `backend/`:
@@ -133,7 +161,7 @@ Backend reads `backend/.env` when launched from `backend/`:
 | `DATABASE_URL` | `sqlite:///./data/gradekade.db`; `.env.example` selects PostgreSQL. Use `postgresql+psycopg://...` for PostgreSQL. |
 | `STORAGE_ROOT` | `data/files`; UUID-named normalized PNGs. |
 | `ORGANIZATION_ID` | Fixed local demo organization UUID `00000000-0000-4000-8000-000000000001`. No user-selectable organization header. |
-| `OCR_PROVIDER` | `mock`; choose `mathpix` to enable the adapter with credentials. |
+| `OCR_PROVIDER` | `mock`, `mathpix` (credentials), or `paddle` (local CPU environment). |
 | `MATHPIX_APP_ID`, `MATHPIX_APP_KEY` | Empty; required only for real Mathpix OCR. |
 | `AUTO_GRADE_CONFIDENCE_THRESHOLD` | `0.995`; auto-correct threshold, **not calibrated accuracy**. |
 | `AUTO_REJECT_CONFIDENCE_THRESHOLD` | `0.999`; auto-incorrect threshold. |
