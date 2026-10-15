@@ -22,3 +22,13 @@ Live Mathpix API calls and live local PostgreSQL were not tested. GitHub CI has 
 - Real handwriting + live Mathpix: **0 evaluated answers**; all accuracy/precision claims remain N/A.
 - The incorrect OCR interpretation for fixture Q7 is routed to review; blank Q20 abstains. These demonstrate routing only. Erasures/cross-outs, subtle glare, plausible wrong digits and photographed handwriting are unmeasured risks.
 - Fresh functional UI review resolved its filtered-navigation finding and returned ship; the existing design remains unchanged.
+
+## Paddle CPU infrastructure milestone — October 14, 2026
+
+- Backend: **100 passed, 1 optional live PostgreSQL test skipped**. New Paddle tests use mocked output and a tiny fake package to exercise the actual worker protocol/lifecycle, with no model downloads.
+- Frontend: **4 unit tests, 8 browser tests passed**; TypeScript, production build, formatting, Ruff and schema drift checks passed.
+- CPU requirements resolve for CPython 3.12 on Apple Silicon. This is dependency resolution, not installation or live inference.
+- A real FastAPI startup with Paddle selected and a missing runtime returned provider=paddle, status=degraded and a clear diagnostic. The smoke command returned nonzero, available=false and zero variants.
+- Default synthetic evaluation remains 20 answers, 95% normalized OCR accuracy, 75% coverage, 15/15 correct automatic decisions. This is still fixture plumbing, unrelated to Paddle accuracy.
+- **Real Paddle model inference speed/accuracy: N/A.** The user explicitly deferred model installation because disk space was insufficient. No fake-package timing is reported as a real benchmark.
+- One local test setup hit a transient temporary-directory creation failure while resolving optional dependencies under disk pressure; after resolution ended, the full backend suite passed.

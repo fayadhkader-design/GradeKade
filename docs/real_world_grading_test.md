@@ -4,7 +4,7 @@ Development/demo use only. Use adult volunteers and fictional learner identifier
 
 ## First live smoke test
 
-1. In backend/.env, set OCR_PROVIDER=mathpix, MATHPIX_APP_ID and MATHPIX_APP_KEY. Keep this file out of Git. Restart the backend from backend/. The banner must say REAL OCR · Mathpix. Missing credentials produce an explicit MOCK fallback.
+1. For free local OCR, first follow docs/paddle-ocr.md and set OCR_PROVIDER=paddle. For Mathpix, in backend/.env set OCR_PROVIDER=mathpix, MATHPIX_APP_ID and MATHPIX_APP_KEY. Keep this file out of Git. Restart the backend from backend/. The banner must say REAL OCR · Mathpix. Missing credentials produce an explicit MOCK fallback.
 2. Print sample_data/blank.pdf. Have an adult write answers with a pen. Include one deliberately incorrect response, one decimal, one fraction and one blank.
 3. In /scan select the sample template and a fictional learner. Leave synthetic OCR OFF. Photograph the entire flat page in good light. Submit.
 4. Check the original/aligned images, padded crops and processing outcomes. Failed alignment/poor photos must say “Retake this page”; provider failures must have no automatic final grade.
@@ -44,7 +44,7 @@ Report total/verified/transcribed answers; raw exact and normalized OCR accuracy
 
 Coverage includes unverified answers, but precision excludes them and shows how many are missing truth. Label **every** automated answer before making any precision claim; reviewing exceptions alone creates selection bias. Unreadable answers are excluded from OCR transcription accuracy, but verified grades still contribute to decision accuracy. Page failures are reported separately from answer denominators because no valid crops exist.
 
-Raw metrics from a mixed source/provider cohort are not real OCR accuracy. --require-real requires both real handwriting and Mathpix; zero eligible rows is an error. Recorded mode uses frozen outputs and makes no paid calls. Fixture mode is plumbing validation only.
+Raw metrics from a mixed source/provider cohort are not real OCR accuracy. --require-real requires both real handwriting and a real provider (Mathpix or Paddle); zero eligible rows is an error. Recorded mode uses frozen outputs and makes no paid calls. Fixture mode is plumbing validation only.
 
 ## Compare crop strategies
 
