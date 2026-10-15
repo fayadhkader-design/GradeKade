@@ -53,6 +53,8 @@ def summarize(rows):
         "verified_answers": len(labeled),
         "transcribed_answers": len(readable),
         "automated_answers": len(auto),
+        "human_review_answers": total - len(auto),
+        "ocr_failed_answers": sum(bool(r.get("ocr_error")) for r in rows),
         "verified_automated_answers": len(verified_auto),
         "unverified_automated_answers": len(auto) - len(verified_auto),
         "ocr_exact_match_accuracy": ratio(raw_matches, len(readable)),

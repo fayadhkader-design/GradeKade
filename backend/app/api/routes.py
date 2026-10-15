@@ -183,6 +183,11 @@ def submission_json(db, submission, detail=True):
         if final and answers
         else None,
         "waiting": sum(q.review_status == "needs_review" for q in answers),
+        "auto_graded": sum(
+            (q.evidence or {}).get("outcome", "").startswith("AUTO_") or q.review_status == "auto_accepted"
+            for q in answers
+        ),
+        "ocr_failed": sum((q.evidence or {}).get("outcome") == "PROCESSING_FAILED" for q in answers),
         "original_url": f"/api/submissions/{submission.id}/image/original",
         "aligned_url": f"/api/submissions/{submission.id}/image/aligned"
         if submission.aligned_file_path
