@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   LayoutDashboard,
@@ -199,6 +200,14 @@ export default function Workspace() {
           Demo learning center<span>Local workspace</span>
         </div>
         <nav aria-label="Main navigation">
+          <Link href="/scan" className="nav-item scan-nav">
+            <ScanLine size={19} />
+            Scan booklets
+          </Link>
+          <Link href="/booklets" className="nav-item">
+            <Files size={19} />
+            Saved booklets
+          </Link>
           {navigation.map((item) => (
             <button
               key={item.view}
@@ -232,6 +241,13 @@ export default function Workspace() {
               GK
             </span>
           </div>
+        </div>
+        <div className="mobile-scan-entry">
+          <Link href="/scan" className="primary">
+            <ScanLine size={20} />
+            Scan a booklet
+            <ArrowRight size={18} />
+          </Link>
         </div>
         <div className="privacy-strip">
           Development/demo use only. Do not upload identifiable student
