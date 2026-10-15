@@ -7,9 +7,13 @@ import { mayUseShortcut } from "@/lib/regions";
 export default function ReviewDesk({
   changed,
   openSubmission,
+  bookletId,
+  finished,
 }: {
   changed: () => void;
   openSubmission: (id: string) => void;
+  bookletId?: string;
+  finished?: () => void;
 }) {
   const [queue, setQueue] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,19 +25,27 @@ export default function ReviewDesk({
   const [busy, setBusy] = useState(false);
   const [loadedCrop, setLoadedCrop] = useState("");
   const submitting = useRef(false);
+  const reviewStarted = useRef(0);
   const input = useRef<HTMLInputElement>(null);
   const current = queue[0];
+  useEffect(() => {
+    if (bookletId && current?.id) window.scrollTo(0, 0);
+  }, [bookletId, current?.id]);
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setQueue(await api<Answer[]>("/review-queue"));
+      setQueue(
+        await api<Answer[]>(
+          `/review-queue${bookletId ? `?booklet_id=${bookletId}` : ""}`,
+        ),
+      );
       setError("");
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [bookletId]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -49,9 +61,22 @@ export default function ReviewDesk({
       try {
         await api(
           `/question-submissions/${current.id}/review`,
-          post({ grade, recognized_answer: editing ? recognized : null }),
+          post({
+            grade,
+            recognized_answer: editing ? recognized : null,
+            review_seconds: Math.min(
+              3600,
+              Math.max(0, (performance.now() - reviewStarted.current) / 1000),
+            ),
+          }),
         );
-        setQueue((q) => q.filter((a) => a.id !== current.id));
+        if (queue.length === 1) {
+          setQueue(
+            await api<Answer[]>(
+              `/review-queue${bookletId ? `?booklet_id=${bookletId}` : ""}`,
+            ),
+          );
+        } else setQueue((q) => q.filter((a) => a.id !== current.id));
         setDone((n) => n + 1);
         setLastSubmission(current.submission_id);
         setEditing(false);
@@ -66,7 +91,15 @@ export default function ReviewDesk({
         setBusy(false);
       }
     },
-    [current, editing, recognized, changed, loadedCrop],
+    [
+      current,
+      editing,
+      recognized,
+      changed,
+      loadedCrop,
+      queue.length,
+      bookletId,
+    ],
   );
   useEffect(() => {
     function key(event: KeyboardEvent) {
@@ -106,7 +139,12 @@ export default function ReviewDesk({
             ? `${done} answers reviewed in this session. Each worksheet finalizes when all its answers have a decision.`
             : "Answers that need your judgment will appear here after processing."}
         </p>
-        {lastSubmission && (
+        {finished && (
+          <button className="primary" onClick={finished}>
+            Back to booklet summary <ArrowRight size={17} />
+          </button>
+        )}
+        {lastSubmission && !finished && (
           <button
             className="primary"
             onClick={() => openSubmission(lastSubmission)}
@@ -125,10 +163,10 @@ export default function ReviewDesk({
       </section>
     );
   return (
-    <section>
+    <section className="review-workspace">
       <div className="section-bar">
         <p>
-          <strong>{queue.length}</strong> waiting{" "}
+          <strong>{queue.length}</strong> in this review batch{" "}
           <span className="muted">· {done} reviewed this session</span>
         </p>
         <span className="badge review">Human judgment needed</span>
@@ -136,14 +174,20 @@ export default function ReviewDesk({
       <div className="review-layout">
         <div className="crop-desk">
           <div className="section-bar">
-            <h2>Question {current.question_number}</h2>
+            <h2>
+              {current.page_number ? `Page ${current.page_number} · ` : ""}
+              Question {current.question_number}
+            </h2>
             <span>{current.student_name}</span>
           </div>
           <div className="crop-stage">
             <img
               key={current.id}
               src={current.crop_url}
-              onLoad={() => setLoadedCrop(current.id)}
+              onLoad={() => {
+                setLoadedCrop(current.id);
+                reviewStarted.current = performance.now();
+              }}
               onError={() =>
                 setError(
                   "The answer image could not load. Refresh the queue before reviewing.",
