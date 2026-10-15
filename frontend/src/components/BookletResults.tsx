@@ -197,7 +197,13 @@ export default function BookletResults({ id }: { id: string }) {
                   <div>
                     <strong>Page {p.page_number || i + 1}</strong>
                     <span>{p.template_name}</span>
-                    <GradeBadge status={p.status} />
+                    <GradeBadge
+                      status={
+                        p.status === "processing"
+                          ? (p.processing?.stage ?? p.status)
+                          : p.status
+                      }
+                    />
                     <small>
                       {p.total} answers · {p.waiting} waiting
                     </small>

@@ -319,6 +319,33 @@ export default function ScanWorkspace() {
       }
       for (let i = 0; i < frozen.pages.length; i++) {
         setProgress(`Processing page ${i + 1} of ${frozen.pages.length}`);
+        let polling = false;
+        const stageTimer = setInterval(async () => {
+          if (polling) return;
+          polling = true;
+          try {
+            const page = await api<Submission>(
+              `/submissions/${frozen.pages[i].id}`,
+            );
+            const labels: Record<string, string> = {
+              aligning: "Aligning",
+              cropping: "Cropping",
+              recognizing: "Recognizing handwriting",
+              grading: "Grading",
+              needs_review: "Needs review",
+              completed: "Completed",
+              failed: "Failed",
+            };
+            const stage = page.processing?.stage ?? page.status;
+            setProgress(
+              `${labels[stage] ?? "Processing"} · page ${i + 1} of ${frozen.pages.length}${stage === "recognizing" ? ` · ${page.processing?.questions_recognized ?? 0}/${page.processing?.questions_total ?? "?"} answers` : ""}`,
+            );
+          } catch {
+            /* The process response remains authoritative. */
+          } finally {
+            polling = false;
+          }
+        }, 1000);
         try {
           await api<Submission>(
             `/submissions/${frozen.pages[i].id}/process`,
@@ -326,6 +353,8 @@ export default function ScanWorkspace() {
           );
         } catch {
           /* Continue other pages. Persisted results expose retry per page. */
+        } finally {
+          clearInterval(stageTimer);
         }
       }
       const result = await api<Booklet>(`/booklets/${frozen.id}`);
