@@ -22,3 +22,5 @@ evaluation_private/
 **/gradekade-evaluation.zip
 
 .impeccable/review/
+
+backend/.venv-paddle/
