@@ -156,7 +156,7 @@ def evaluate_records(dataset, provider=None, threshold=0.995, variants=None):
                     "ocr_error": any(r.error for r in results),
                     "ocr_seconds": ocr_seconds,
                     "inference_seconds": sum(inference) if inference else None,
-                    "variants_run": len(results),
+                    "variants_run": sum(r.error != "paddle_initialization_failed" for r in results),
                     "preprocessing_variants": selected,
                     "grading_strategy": evidence["strategy"],
                     "evidence": evidence,

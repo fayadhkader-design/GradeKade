@@ -182,7 +182,9 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
         evidence.update(
             ocr_seconds=ocr_seconds,
             inference_seconds=inference_seconds if timed_variants else None,
-            variants_run=sum(r.error != "page_ocr_budget_exhausted" for r in results),
+            variants_run=sum(
+                r.error not in {"page_ocr_budget_exhausted", "paddle_initialization_failed"} for r in results
+            ),
             variants={name: asdict(result) for name, result in zip(chosen, results)},
             crop_variants=paths,
             selected_variants=chosen,
@@ -208,6 +210,8 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
     submission.processing_metadata = {
         **submission.processing_metadata,
         "stage": submission.status,
+        "ocr_available": getattr(provider, "available", True),
+        "ocr_diagnostic": getattr(provider, "diagnostic", None),
         "total_ocr_seconds": sum(row[-1] for row in recognized),
         "average_ocr_seconds_per_answer": sum(row[-1] for row in recognized) / len(recognized),
         "total_inference_seconds": total_inference_seconds if timed_inference_answers else None,
