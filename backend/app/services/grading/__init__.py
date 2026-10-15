@@ -63,3 +63,83 @@ def grade_answer(
         "auto_accepted" if accepted else "needs_review",
         reason,
     )
+
+
+def grade_evidence(
+    results,
+    expected,
+    answer_type,
+    *,
+    correct_threshold=0.995,
+    incorrect_threshold=0.999,
+    alignment_verified=True,
+    alignment_confidence=1.0,
+    alignment_minimum=0.8,
+    quality_usable=True,
+    auto_grade_enabled=True,
+    blank=False,
+):
+    """A rule score: never increase vendor confidence through correlated variants."""
+    candidates = [r.normalized_candidate for r in results]
+    failures = not results or any(r.error for r in results)
+    ambiguous = any(
+        r.provider_metadata.get("line_error") or r.provider_metadata.get("line_count", 1) > 1 for r in results
+    )
+    agreement = bool(candidates) and candidates[0] is not None and len(set(candidates)) == 1
+    known_scores = [r.confidence for r in results if r.confidence is not None]
+    score = min(known_scores) if len(known_scores) == len(results) and known_scores else 0
+    gates = alignment_verified and alignment_confidence >= alignment_minimum and quality_usable
+    predicted_correct = agreement and answers_equivalent(candidates[0], expected, answer_type)
+    decision = grade_answer(
+        results[0].raw_text if results else "",
+        expected,
+        answer_type,
+        score if agreement and not ambiguous and not failures else 0,
+        correct_threshold if predicted_correct else incorrect_threshold,
+        gates,
+        auto_grade_enabled,
+        blank,
+    )
+    reason = (
+        "ocr_provider_error"
+        if failures
+        else "poor_photo_quality"
+        if not quality_usable
+        else "ambiguous_ocr"
+        if ambiguous
+        else "variant_disagreement"
+        if not agreement
+        else decision.routing_reason
+    )
+    if reason != decision.routing_reason:
+        from dataclasses import replace
+
+        decision = replace(
+            decision,
+            final_grade=None,
+            review_status="needs_review",
+            grading_confidence=0,
+            routing_reason=reason,
+        )
+    outcome = (
+        "PROCESSING_FAILED"
+        if failures
+        else "AUTO_CORRECT"
+        if decision.final_grade == "correct"
+        else "AUTO_INCORRECT"
+        if decision.final_grade == "incorrect"
+        else "NEEDS_REVIEW"
+    )
+    evidence = {
+        "outcome": outcome,
+        "variant_agreement": agreement,
+        "quality_usable": quality_usable,
+        "alignment_verified": alignment_verified,
+        "alignment_confidence": alignment_confidence,
+        "alignment_minimum": alignment_minimum,
+        "correct_threshold": correct_threshold,
+        "incorrect_threshold": incorrect_threshold,
+        "confidence_calibrated": False,
+        "strategy": "minimum_vendor_score_with_evidence_gates_v1",
+    }
+    return decision, evidence
