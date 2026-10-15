@@ -30,6 +30,9 @@ def test_truth_export_preserves_ai_and_rejects_fixture_as_real(client):
         assert answer[key] == after[key]
     data = api.get("/evaluation?source=synthetic").json()
     assert data["report"]["verified_answers"] == 1
+    assert data["report"]["average_human_review_seconds"] is None
+    labeled = next(r for r in data["items"] if r["id"] == answer["id"])
+    assert labeled["annotation_seconds"] == 1.5 and labeled["review_seconds"] is None
     assert data["report"]["unverified_automated_answers"] == 14
     assert api.get(after["variant_urls"]["color"].removeprefix("/api")).status_code == 200
     assert api.get(f"/question-submissions/{answer['id']}/variant/unknown").status_code == 404

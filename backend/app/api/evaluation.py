@@ -99,7 +99,8 @@ def records(db):
                 or answer.review_status == "auto_accepted",
                 "decision": evidence.get("outcome"),
                 "human_final_grade": answer.final_grade if answer.review_status == "human_reviewed" else None,
-                "review_seconds": truth.annotation_seconds if truth else answer.review_seconds,
+                "review_seconds": answer.review_seconds,
+                "annotation_seconds": truth.annotation_seconds if truth else None,
                 "ocr_error": any(v.get("error") for v in evidence.get("variants", {}).values()),
                 "alignment_verified": (page.alignment_metadata or {}).get(
                     "accepted_for_cropping", (page.alignment_metadata or {}).get("verified")
@@ -262,6 +263,7 @@ def export(db: DB, source: Literal["all", "real_handwriting", "synthetic", "unkn
             "decision",
             "human_final_grade",
             "review_seconds",
+            "annotation_seconds",
             "ocr_error",
             "alignment_verified",
             "routing_reason",
