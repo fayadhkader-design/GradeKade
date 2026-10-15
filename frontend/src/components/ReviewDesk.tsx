@@ -39,8 +39,8 @@ export default function ReviewDesk({
       ? `?booklet_id=${bookletId}`
       : "";
   useEffect(() => {
-    if (bookletId && current?.id) window.scrollTo(0, 0);
-  }, [bookletId, current?.id]);
+    if ((bookletId || correctionRoundId) && current?.id) window.scrollTo(0, 0);
+  }, [bookletId, correctionRoundId, current?.id]);
   const load = useCallback(async () => {
     setLoading(true);
     try {
