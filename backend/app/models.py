@@ -8,10 +8,12 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -108,6 +110,13 @@ class WorksheetSubmission(Identity, Base):
     )
     page_number: Mapped[int | None] = mapped_column(Integer)
     processing_seconds: Mapped[float | None] = mapped_column(Float)
+    correction_round_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("correction_rounds.id", name="fk_submission_correction_round"), index=True
+    )
+    source_submission_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("worksheet_submissions.id", name="fk_submission_source")
+    )
+
     __table_args__ = (
         CheckConstraint("status IN ('uploaded','processing','needs_review','completed','failed')"),
         UniqueConstraint("booklet_id", "page_number", name="uq_booklet_page"),
@@ -139,6 +148,10 @@ class QuestionSubmission(Identity, Base):
     routing_reason: Mapped[str] = mapped_column(String(100))
     ocr_provider: Mapped[str] = mapped_column(String(40))
     evidence: Mapped[dict | None] = mapped_column(JSON)
+    initial_question_submission_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("question_submissions.id", name="fk_answer_initial"), index=True
+    )
+
     __table_args__ = (
         UniqueConstraint("worksheet_submission_id", "question_template_id"),
         CheckConstraint("system_grade IN ('correct','incorrect','uncertain')"),
@@ -165,4 +178,46 @@ class EvaluationAnnotation(Identity, Base):
         CheckConstraint("transcription_status IN ('readable','blank','unreadable')"),
         CheckConstraint("verified_grade IN ('correct','incorrect')"),
         CheckConstraint("source IN ('real_handwriting','synthetic','unknown')"),
+    )
+
+
+class CorrectionRound(Identity, Base):
+    __tablename__ = "correction_rounds"
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"), index=True)
+    booklet_id: Mapped[UUID] = mapped_column(ForeignKey("booklets.id"), index=True)
+    round_number: Mapped[int] = mapped_column(Integer)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    unresolved_before: Mapped[int] = mapped_column(Integer)
+    unresolved_after: Mapped[int | None] = mapped_column(Integer)
+    __table_args__ = (
+        UniqueConstraint("booklet_id", "round_number", name="uq_correction_round_number"),
+        CheckConstraint("round_number > 0 AND unresolved_before > 0", name="ck_correction_round_counts"),
+        Index(
+            "uq_open_correction_round",
+            "booklet_id",
+            unique=True,
+            sqlite_where=text("completed_at IS NULL"),
+            postgresql_where=text("completed_at IS NULL"),
+        ),
+    )
+
+
+class CorrectionTarget(Identity, Base):
+    __tablename__ = "correction_targets"
+    correction_round_id: Mapped[UUID] = mapped_column(ForeignKey("correction_rounds.id"), index=True)
+    initial_question_submission_id: Mapped[UUID] = mapped_column(ForeignKey("question_submissions.id"))
+    __table_args__ = (
+        UniqueConstraint(
+            "correction_round_id", "initial_question_submission_id", name="uq_correction_target"
+        ),
+    )
+
+
+class CorrectionPageSlot(Identity, Base):
+    __tablename__ = "correction_page_slots"
+    correction_round_id: Mapped[UUID] = mapped_column(ForeignKey("correction_rounds.id"), index=True)
+    source_submission_id: Mapped[UUID] = mapped_column(ForeignKey("worksheet_submissions.id"))
+    current_submission_id: Mapped[UUID | None] = mapped_column(ForeignKey("worksheet_submissions.id"))
+    __table_args__ = (
+        UniqueConstraint("correction_round_id", "source_submission_id", name="uq_correction_page_slot"),
     )
