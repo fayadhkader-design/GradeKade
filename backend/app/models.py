@@ -138,6 +138,7 @@ class QuestionSubmission(Identity, Base):
     review_seconds: Mapped[float | None] = mapped_column(Float)
     routing_reason: Mapped[str] = mapped_column(String(100))
     ocr_provider: Mapped[str] = mapped_column(String(40))
+    evidence: Mapped[dict | None] = mapped_column(JSON)
     __table_args__ = (
         UniqueConstraint("worksheet_submission_id", "question_template_id"),
         CheckConstraint("system_grade IN ('correct','incorrect','uncertain')"),
@@ -146,4 +147,22 @@ class QuestionSubmission(Identity, Base):
         CheckConstraint(
             "ocr_confidence >= 0 AND ocr_confidence <= 1 AND grading_confidence >= 0 AND grading_confidence <= 1"
         ),
+    )
+
+
+class EvaluationAnnotation(Identity, Base):
+    """Human truth is independent of immutable OCR/system snapshots."""
+
+    __tablename__ = "evaluation_annotations"
+    question_submission_id: Mapped[UUID] = mapped_column(ForeignKey("question_submissions.id"), unique=True)
+    actual_answer: Mapped[str | None] = mapped_column(String(100))
+    transcription_status: Mapped[str] = mapped_column(String(20))
+    verified_grade: Mapped[str] = mapped_column(String(20))
+    source: Mapped[str] = mapped_column(String(30))
+    annotation_seconds: Mapped[float | None] = mapped_column(Float)
+    verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    __table_args__ = (
+        CheckConstraint("transcription_status IN ('readable','blank','unreadable')"),
+        CheckConstraint("verified_grade IN ('correct','incorrect')"),
+        CheckConstraint("source IN ('real_handwriting','synthetic','unknown')"),
     )
