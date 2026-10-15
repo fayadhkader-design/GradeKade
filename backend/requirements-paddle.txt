@@ -1,0 +1,5 @@
+# Separate CPU-only environment; never install this into backend/.venv.
+# The OCR extra includes formula tokenizers and image transforms, without GPU packages.
+paddlepaddle==3.3.1
+paddleocr==3.7.0
+paddlex[ocr]==3.7.2
