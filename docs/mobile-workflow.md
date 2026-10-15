@@ -16,7 +16,7 @@ Run migrations (`cd backend && uv run alembic upgrade head`) before starting the
 - Booklet/page UUIDs are stable idempotency keys. Retries return the existing matching page; mismatched images/slots are rejected. Upload progress and synchronous per-page processing are separate. Failed processing can be retried from booklet results without capturing again.
 - Frozen uploads cannot be reordered/replaced. **Create editable copy** preserves the photos under a new booklet ID for correcting a bad capture or settings. Already uploaded pages stay in the original batch; no automatic record deletion.
 - Camera tracks stop on close, submission and component exit. No microphone is requested. Synthetic OCR is turned off when opening the camera: it is not handwriting recognition.
-- No automatic edge detection, perspective correction at capture time, blur or glare scoring yet. Framing/readability checks are manual. Backend template alignment still runs and unverified alignment forces human review.
+- No automatic edge detection or perspective correction at capture time. Framing checks remain manual. The backend now measures severe blur/darkness/empty photos and alignment; clearly unusable pages require a retake. Moderate glare and handwriting ambiguity still need real-world validation.
 
 ## Phone/device boundary
 

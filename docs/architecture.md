@@ -9,7 +9,7 @@ A local development application for arithmetic worksheets. Human review is a fir
 - **SQLAlchemy + PostgreSQL**: UUID entities, explicit relationships and constraints; SQLite is available for isolated tests and an optional zero-install demo. Docker Compose supplies PostgreSQL. Schema versioning through Alembic.
 - **LocalStorage**: UUID keys; files served through organization-scoped resource routes, never arbitrary filesystem paths. Storage interface can be implemented for object storage later.
 - **Ingestion**: bounded image/PDF validation and first-page rendering.
-- **Alignment**: ORB matches + RANSAC homography with geometric and inlier checks. Unverified alignment always forces human review; no silent high-confidence resize fallback.
+- **Alignment**: ORB matches + RANSAC homography with geometric and inlier checks. Unverified alignment requires a retake before cropping/grading; no silent high-confidence resize fallback.
 - **Cropping**: normalized rectangles on the aligned image. Preprocessing is gentle; full-resolution color crops retained.
 - **OCR**: provider protocol; mock is deliberately empty/uncertain for arbitrary uploads. A separately selected synthetic demo uses a fixture transcript bound to exact generated sample-pixel hashes. No answers are inferred from the answer key. Mathpix is opt-in; missing credentials fall back to clearly labeled mock, provider errors force review.
 - **Normalization**: allowlisted numeric grammar and exact rational arithmetic. No evaluation of untrusted expressions, floating-point tolerance, or LLM decisions.
@@ -30,3 +30,13 @@ Submission: uploaded → processing → needs_review/completed, or failed. Expli
 Start PostgreSQL with Docker Compose, migrate and seed, then run FastAPI and Next.js. A dev script can use SQLite when Docker is unavailable. API runs on loopback; Next.js proxies API requests so storage and API URLs are same-origin. Uploads are limited to 10 MB and 20 megapixels; only decoded JPEG/PNG/PDF accepted. PDFs render the first page only, with bounded dimensions.
 
 Before real records: authenticated sessions, enforced organization membership/roles and database RLS, private object storage, retention/deletion policies, consent/vendor review, encrypted transport/backups, rate limits, sandboxed ingestion, durable jobs, confidence calibration on held-out handwriting, monitoring and security review. No FERPA/COPPA claims.
+
+## Real OCR / evaluation boundary (0.2 development milestone)
+
+recognize_answer receives image bytes and answer type, never the answer key. OCRResult keeps raw text, nullable provider confidence, normalized candidate, allowlisted metadata and a safe error. HTTP retries are bounded; vendor errors never become incorrect answers. Missing credentials visibly fall back to MOCK, while configured CLI runs reject that fallback.
+
+Full-color aligned regions are retained for human review. Padded color/grayscale/contrast debug variants are saved; selected OCR variants are configurable. All selected variants must normalize to the same answer, with no line errors/multiple lines. Grading uses the minimum known score and gates parsing, alignment, blank crops and template policy; it never multiplies/inflates confidence from correlated variants. Separate auto-correct/incorrect thresholds are uncalibrated rules.
+
+The unchanged submission status enum is supplemented by persisted processing_metadata.stage. Severe photo failures or rejected geometry stop before OCR and require a retake. Individual provider failures produce PROCESSING_FAILED outcomes and retain usable crops for human decisions. AI raw text/system grade/rule evidence remain immutable after processing. Human final grades/timing and optional independent EvaluationAnnotation transcription/verified grade/source are separate.
+
+Evaluation exports contain crops, IDs and observations, no student names or full pages. Original pages are available only through scoped local resource routes. Snapshot reports never call the provider. Accuracy excludes missing labels and reports denominators; coverage includes unlabeled records. Unique-page failures remain separate from answer accuracy. Source (real handwriting/synthetic/unknown) and provider (Mathpix/mock/fixture) are independent dimensions; exact supplied synthetic page pixels cannot be labeled real. Corrections should create new submissions later rather than overwrite these initial observations.
