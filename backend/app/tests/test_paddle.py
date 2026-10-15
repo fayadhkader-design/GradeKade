@@ -274,3 +274,20 @@ def test_real_gate_includes_paddle_recorded_results(tmp_path):
     assert report["real_handwriting_real_ocr_answers"] == 1
     assert report["by_provider"]["paddle"]["normalized_ocr_accuracy"] == 1
     assert report["average_inference_seconds_per_answer"] == 0.2
+
+
+def test_model_initialization_failure_stays_explicit(tmp_path, monkeypatch):
+    (tmp_path / "paddleocr.py").write_text("""
+class FormulaRecognition:
+    def __init__(self, **kwargs):
+        raise RuntimeError("private-path-or-provider-detail")
+""")
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path))
+    p = PaddleOCRProvider(sys.executable, cache_root=str(tmp_path / "cache"))
+    try:
+        assert not p.initialize()
+        assert p.name == "paddle" and not p.available
+        assert p.diagnostic and "private-path-or-provider-detail" not in p.diagnostic
+        assert p.recognize_answer(b"crop", "integer").error == "paddle_initialization_failed"
+    finally:
+        p.close()
