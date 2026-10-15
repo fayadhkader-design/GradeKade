@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -50,3 +51,16 @@ class QuestionsSave(BaseModel):
 class ReviewCreate(BaseModel):
     grade: Literal["correct", "incorrect"]
     recognized_answer: str | None = Field(default=None, max_length=100)
+    review_seconds: float | None = Field(default=None, ge=0, le=3600)
+
+
+class BookletCreate(BaseModel):
+    id: UUID
+    student_id: UUID
+    page_count: int = Field(ge=1, le=30)
+    capture_seconds: float = Field(default=0, ge=0, le=86400)
+    synthetic_demo: bool = False
+
+
+class BaselineCreate(BaseModel):
+    seconds: float = Field(gt=0, le=86400)
