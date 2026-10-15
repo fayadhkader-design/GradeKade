@@ -32,3 +32,14 @@ Live Mathpix API calls and live local PostgreSQL were not tested. GitHub CI has 
 - Default synthetic evaluation remains 20 answers, 95% normalized OCR accuracy, 75% coverage, 15/15 correct automatic decisions. This is still fixture plumbing, unrelated to Paddle accuracy.
 - **Real Paddle model inference speed/accuracy: N/A.** The user explicitly deferred model installation because disk space was insufficient. No fake-package timing is reported as a real benchmark.
 - One local test setup hit a transient temporary-directory creation failure while resolving optional dependencies under disk pressure; after resolution ended, the full backend suite passed.
+
+
+## Correction workflow milestone — October 15, 2026
+
+- Backend: **107 passed, 1 optional local live PostgreSQL test skipped**. Includes repeated correction rounds, mixed auto/human decisions, unresolved-only processing, historical preservation, capture retry/retake, tenant isolation, one-open-round enforcement and already-correct assignment rejection.
+- Frontend: **4 unit tests and 9 browser tests passed**; type check, production build and formatting passed.
+- Browser correction scenario: 17/20 initial → 2 of 3 corrected → 1 of 1 corrected → 20/20 complete; phone capture/review/finalization, question history and mobile overflow checked.
+- Migration 0004 upgrades legacy SQLite records without changing grades or evaluation annotations; PostgreSQL SQL compiles. Alembic reports no schema drift. Downgrade refuses to delete existing correction history.
+- Local mock-only walkthrough created a completed booklet and verified original answer JSON unchanged. No artificial human review timing was recorded by the script.
+- Screenshots are saved under ignored outputs/. These are synthetic/mock workflow demonstrations, not OCR accuracy evidence.
+- Paddle/Mathpix adapters, grading thresholds and normalization were unchanged during this milestone.

@@ -20,6 +20,21 @@ The local mobile-first milestone is at `/scan`: guided camera capture, persisten
 - Evaluation CLI: exact/normalized OCR, decision accuracy, verified auto-grade precision and Wilson interval, coverage/review rate, false automatic grades, OCR/page failures and type/confidence/provider cohorts.
 - Original 20-question synthetic worksheet, blank PNG/PDF, completed PNG, answer key and template JSON. No proprietary curriculum imagery or content.
 
+## Correction and regrading workflow
+
+Booklets now track an assignment across correction rounds. After initial grades/reviews are final, incorrect answers appear as corrections remaining. Start a round, capture only affected pages, process only the unresolved answer regions, review exceptions and finalize. Repeat until every question is correct. A graded scan can still have mistakes; the booklet is complete only at 100%.
+
+Results preserve initial accuracy, current completion, round counts and every question's OCR/system/human attempt history. Standalone worksheet results can be attached to a one-page assignment. Failed/unprocessed correction captures can be retaken without deleting earlier captures.
+
+~~~bash
+cd backend
+uv run alembic upgrade head
+# With both local servers running in mock mode:
+uv run python ../scripts/demo_corrections.py
+~~~
+
+The script creates an explicitly synthetic 17/20 → 19/20 → 20/20 example and prints its local URL. No paid/live OCR is used. See [correction APIs, migration details and exact manual procedure](docs/correction-workflow.md). Original correction sample PNGs are included in sample_data and the /samples allowlist. OCR implementations and thresholds were not changed.
+
 ## Repository
 
 ```text

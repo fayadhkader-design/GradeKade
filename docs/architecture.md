@@ -46,3 +46,12 @@ Evaluation exports contain crops, IDs and observations, no student names or full
 OCR_PROVIDER=paddle uses PP-FormulaNet-S through PaddleOCR FormulaRecognition in a separate Python 3.12 CPU environment. A persistent subprocess receives in-memory answer crops via a bounded prefixed JSON protocol; serialized calls avoid sharing an unsafe native predictor across request threads. Worker timeouts terminate the process to prevent late predictions being assigned to another answer. The normal backend keeps its existing OpenCV package/version; PaddleX's conflicting cv2 distribution stays isolated.
 
 Startup attempts initialization and reports unavailable/degraded status explicitly, with no mock fallback. Model downloads/cache are local setup steps. Raw LaTeX and null provider probability remain separate from normalized candidates. Optional experimental agreement-based automation is disabled by default and records its uncalibrated rule strategy independently. Paddle/Mathpix evaluation uses the same source/truth format; inference time, OCR wall time, attempted variants and missing timing denominators are preserved in exports.
+
+
+## Assignment corrections
+
+Booklet is the assignment instance; its completed status now requires all questions' latest finalized attempts to be correct. Existing page completed status remains grading-final, preserving old scan semantics. CorrectionRound snapshots unresolved initial QuestionSubmission IDs, CorrectionTarget stores those immutable memberships, and CorrectionPageSlot points to the current capture of an affected original page.
+
+A corrected scan is a new WorksheetSubmission referencing its round/source. Only its snapshotted questions enter cropping/OCR/grading; each new QuestionSubmission links to the initial answer. Finalized rounds advance the assignment's resolved state. Explicit finalization requires every target to have a final decision. One open round per booklet is enforced by a partial unique index; capture/process mutations use round/slot locks and conditional updates.
+
+Initial grades, human/AI decisions, evidence and evaluation annotations are preserved. Retakes of failed/unprocessed captures create new records; superseded captures cannot be processed. No correction inherits the initial synthetic fixture transcript. Evaluation exports retain attempt lineage. Correction counts/timings are groundwork only; OCR behavior and thresholds are unchanged.
