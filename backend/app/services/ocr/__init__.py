@@ -21,6 +21,7 @@ class OCRResult:
     normalized_candidate: str | None = None
     provider_metadata: dict = field(default_factory=dict)
     error: str | None = None
+    provider_name: str | None = None
 
     @property
     def provider_confidence(self):
@@ -134,7 +135,22 @@ class MathpixOCRProvider(AnswerRecognition):
         return OCRResult(text[:1000], confidence, provider_metadata=metadata)
 
 
+REAL_OCR_PROVIDERS = frozenset({"mathpix", "paddle"})
+
+
 def get_provider(config: Settings) -> OCRProvider:
+    if config.ocr_provider == "paddle":
+        from app.services.ocr.paddle import cached_paddle_provider
+
+        return cached_paddle_provider(
+            str(config.paddle_python.resolve()),
+            config.paddle_model_name,
+            str(config.paddle_model_dir.resolve()) if config.paddle_model_dir else None,
+            str(config.paddle_cache_root.resolve()),
+            config.paddle_cpu_threads,
+            config.paddle_initialization_timeout_seconds,
+            config.paddle_inference_timeout_seconds,
+        )
     if (
         config.ocr_provider == "mathpix"
         and config.mathpix_app_id.get_secret_value()
