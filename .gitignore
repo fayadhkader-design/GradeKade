@@ -16,3 +16,7 @@ outputs/
 .DS_Store
 playwright-report/
 test-results/
+
+# Private handwritten evaluation exports / experiment photos
+evaluation_private/
+**/gradekade-evaluation.zip

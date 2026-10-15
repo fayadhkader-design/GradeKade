@@ -6,7 +6,7 @@ An internal, AI-assisted arithmetic worksheet grading MVP. Configure a blank tem
 
 ## Mobile scanning preview
 
-The local mobile-first milestone is at `/scan`: guided camera capture, persistent drafts, ordered booklet batches, upload retry, phone exception review and observed workflow timings. See the [mobile walkthrough and limitations](docs/mobile-workflow.md). Automatic capture-quality checks and live handwriting evaluation remain future work.
+The local mobile-first milestone is at `/scan`: guided camera capture, persistent drafts, ordered booklet batches, upload retry, phone exception review and observed workflow timings. See the [mobile walkthrough and limitations](docs/mobile-workflow.md). Severe photo-quality checks and an internal handwriting evaluation workspace are now available; live-provider verification awaits credentials and real photographed handwriting.
 
 ## What works
 
@@ -16,7 +16,8 @@ The local mobile-first milestone is at `/scan`: guided camera capture, persisten
 - Submission workflow: bounded uploads, first PDF page rendering, gentle grayscale preprocessing for ORB registration, full-resolution alignment and cropping, swappable OCR, exact numeric normalization and deterministic comparison.
 - Results: original/aligned page, answer crops, expected/OCR/edited text, system confidence, auto/human decisions, final score after every answer is decided.
 - Human review: exception-only queue, **C** correct, **I** incorrect, **E** edit. Shortcuts are suppressed in text inputs. Each decision advances automatically; decisions are blocked until the current crop loads. Original predictions and human overrides are retained.
-- Evaluation CLI with separate answer keys, actual responses and OCR observations.
+- Internal /evaluation workspace: independent human transcription/verified grades, full-page/crop/variant inspection, immutable AI outputs, scoped CSV/JSON/PNG ZIP export.
+- Evaluation CLI: exact/normalized OCR, decision accuracy, verified auto-grade precision and Wilson interval, coverage/review rate, false automatic grades, OCR/page failures and type/confidence/provider cohorts.
 - Original 20-question synthetic worksheet, blank PNG/PDF, completed PNG, answer key and template JSON. No proprietary curriculum imagery or content.
 
 ## Repository
@@ -33,8 +34,8 @@ backend/
   app/schemas.py           Validated API inputs
   app/services/
     ingestion/ alignment/ cropping/ ocr/
-    normalization/ grading/ storage/ pipeline.py
-  app/evaluation/          Image-based evaluation CLI
+    normalization/ grading/ quality/ storage/ pipeline.py
+  app/evaluation/          Crop evaluation + recorded-dataset reports
   app/tests/               Unit, API, migration and integration tests
   migrations/              Immutable Alembic schema migration
 sample_data/               Original worksheet assets and template
@@ -109,7 +110,19 @@ Synthetic mode accepts only the exact supplied blank/completed PNGs. Its transcr
 | `OCR_PROVIDER=mathpix` plus both credentials | Sends answer crops to Mathpix `/v3/text` and uses returned text/confidence. No keys in source or browser. Provider errors route to review. |
 | Mathpix selected but credentials missing | Falls back to empty mock mode. UI and result metadata show the actual provider. |
 
-The Mathpix adapter follows the [official image OCR API](https://docs.mathpix.com/reference/post-v3-text). Its HTTP contract is mocked in tests; live paid OCR has **not** been exercised. Enabling it transmits worksheet crops to that vendor; review vendor privacy/retention terms before using real records.
+The Mathpix adapter follows the [official image OCR API](https://docs.mathpix.com/reference/post-v3-text). Its full-page integration and HTTP contract are tested with simulated provider responses; live paid OCR has **not** been exercised. Requests set metadata.improve_mathpix=false; account-level vendor settings can override this flag. See the [official privacy documentation](https://docs.mathpix.com/concepts/privacy). Enabling it transmits worksheet crops to that vendor; review vendor privacy/retention terms before using real records.
+
+### Configure real OCR later
+
+Create backend/.env without copying the PostgreSQL example if you want to keep the existing SQLite demo:
+
+```dotenv
+OCR_PROVIDER=mathpix
+MATHPIX_APP_ID=your-app-id
+MATHPIX_APP_KEY=your-app-key
+```
+
+Restart FastAPI from backend/. The global banner must say **REAL OCR · Mathpix**. Leave synthetic OCR off for photographs. Set OCR_PROVIDER=mock and restart to return to mock mode. Keys stay backend-only and ignored by Git. Missing either key visibly falls back to MOCK; the evaluation CLI refuses that fallback for configured real runs.
 
 ## Environment variables
 
@@ -122,7 +135,13 @@ Backend reads `backend/.env` when launched from `backend/`:
 | `ORGANIZATION_ID` | Fixed local demo organization UUID `00000000-0000-4000-8000-000000000001`. No user-selectable organization header. |
 | `OCR_PROVIDER` | `mock`; choose `mathpix` to enable the adapter with credentials. |
 | `MATHPIX_APP_ID`, `MATHPIX_APP_KEY` | Empty; required only for real Mathpix OCR. |
-| `AUTO_GRADE_CONFIDENCE_THRESHOLD` | `0.995`; vendor confidence is **not calibrated accuracy**. |
+| `AUTO_GRADE_CONFIDENCE_THRESHOLD` | `0.995`; auto-correct threshold, **not calibrated accuracy**. |
+| `AUTO_REJECT_CONFIDENCE_THRESHOLD` | `0.999`; auto-incorrect threshold. |
+| `ALIGNMENT_MINIMUM_CONFIDENCE` | `0.8`; geometric evidence gate, not probability. |
+| `CROP_PADDING_PIXELS` | `6`; aligned-template pixels, clipped to page bounds. |
+| `OCR_VARIANTS` | `color`; comma-separated color/grayscale/contrast. Each selected variant adds paid requests; disagreement forces review. |
+| `OCR_TIMEOUT_SECONDS`, `OCR_RETRIES` | `8`, `1`; transient failure retry, bounded per request. |
+| `PHOTO_BLUR_MINIMUM` | `3`; Laplacian variance after resizing to max 1200px; experimental heuristic. |
 | `MAX_UPLOAD_BYTES` | `10485760` (10 MB); frontend proxy has a matching hard limit. |
 | `MAX_IMAGE_PIXELS` | `20000000` (20 MP). |
 | `FRONTEND_ORIGIN` | `http://localhost:3000`; direct API CORS allowlist. |
@@ -160,7 +179,16 @@ Auto-grade coverage: 75.00%
 Human review rate:   25.00%
 ```
 
-These figures establish plumbing correctness only. They are not evidence of production precision or workload reduction. With ordinary empty mock OCR, coverage is 0%, review rate 100%, and precision N/A. Evaluation operates on already cropped images; registration has separate full-page integration tests.
+These figures establish plumbing correctness only. They are not evidence of production precision or workload reduction. With ordinary empty mock OCR, coverage is 0%, review rate 100%, and precision N/A. Fixture evaluation uses already cropped images, so alignment is N/A. Application exports include unique-page failure records; recorded reports measure their alignment failures separately from answer accuracy.
+
+**Real evaluation:** use /evaluation to label Unclassified uploads as real handwriting and verify actual answers/grades, then export the Verified real handwriting cohort. Unzip privately and run:
+
+```bash
+cd backend
+uv run python -m app.evaluation.run --dataset /absolute/private/dataset --provider recorded --require-real --json
+```
+
+Recorded mode makes no paid requests and preserves the original routing thresholds. Accuracy denominators exclude missing human truth and show the missing counts. `--provider configured` explicitly performs new OCR; it errors when real-provider credentials are unavailable, and crop-only datasets without alignment verification cannot auto-grade. Do not use exception-only labels to claim automatic precision. See [the real-world test protocol](docs/real_world_grading_test.md) for the 500–1,000-answer collection plan.
 
 Regenerate original assets with `cd backend && uv run python ../scripts/generate_samples.py`. OpenCV registration/crop hashes may differ across library/platform versions; regenerate fixtures together if synthetic predictions no longer match. Do not use the fixture generator to create predictions for a real evaluation dataset.
 
@@ -172,12 +200,12 @@ Regenerate original assets with `cd backend && uv run python ../scripts/generate
 
 - Local single-center demo identity; **no authentication or production role enforcement**. Run on loopback only. Not a secure SaaS deployment.
 - One page per upload, manual template selection, exact answers only, no partial credit.
-- ORB registration requires a flat, feature-rich page. Failed geometry falls back to a resized preview and **forces review for every answer**; inspect the original page because crop placement may be wrong. Plausible feature matches are not proof that the right template was selected.
+- ORB registration requires a flat, feature-rich page. Failed geometry retains a diagnostic preview and **requires a retake before grading**; severe blur/darkness/empty or low-resolution photos are also rejected. Moderate glare, erasures, crossed-out answers and confidently wrong single-digit OCR remain unvalidated risks. Plausible feature matches are not proof that the right template was selected.
 - Grading confidence is a gated vendor score, not a learned or calibrated probability. Blank detection and conservative parsing are heuristics. No real-world error/coverage claims.
-- Processing is synchronous and sequential; no durable jobs, cancellation, crash recovery for stuck `processing`, or provider retry/backoff. Slow live OCR may exceed the proxy timeout; jobs must replace this before sustained use.
+- Processing is synchronous and sequential with persisted Aligning/Cropping/Recognizing/Grading stages, transient provider retry/backoff and a 110-second OCR loop budget (an in-flight request can run longer). Remaining crops after the budget enter review as processing failures. No durable jobs, cancellation or crash recovery for stuck `processing`; jobs must replace this before sustained use. Automatic retries may duplicate vendor billing.
 - Image limits and private resource lookups are foundations only. Retention/deletion, sandboxed PDF decoding, storage encryption, rate limits, TLS, backups, audit administration and production authorization remain work. Reprocessing can leave orphaned local images.
 - Review queue returns up to 200 items and dashboard lists the latest 100 worksheets; metrics/query optimization, pagination and multi-grader review assignment are future work.
-- Only initial migration; revised templates must be created separately. No template cloning or unsaved-edit recovery yet.
+- Versioned migrations preserve legacy grades and add booklet/evaluation records; revised templates must be created separately. No template cloning or unsaved-edit recovery yet.
 
 Next five highest-value engineering steps:
 
