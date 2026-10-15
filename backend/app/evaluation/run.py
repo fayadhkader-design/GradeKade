@@ -60,8 +60,9 @@ def evaluate(dataset: Path, provider: OCRProvider, threshold: float) -> Evaluati
                 result.raw_text,
                 row["expected_answer"],
                 row["answer_type"],
-                result.confidence,
+                result.confidence or 0,
                 threshold,
+                auto_grade_enabled=result.confidence is not None,
                 alignment_verified=provider.name == "synthetic_fixture"
                 or row.get("alignment_verified") == "True",
                 blank=is_blank(image),
