@@ -69,6 +69,9 @@ export default function Evaluation() {
     ) ?? [];
   const current = items[index];
   useEffect(() => {
+    setIndex((previous) => Math.max(0, Math.min(previous, items.length - 1)));
+  }, [items.length]);
+  useEffect(() => {
     setActual(current?.student_actual_answer ?? "");
     setStatus(
       current?.transcription_status === "blank" ||
@@ -78,8 +81,6 @@ export default function Evaluation() {
     );
     setGrade(current?.verified_grade ?? "incorrect");
     setOrigin(current?.source ?? "unknown");
-    started.current = performance.now();
-    loaded.current = "";
   }, [
     current?.id,
     current?.student_actual_answer,
@@ -87,6 +88,10 @@ export default function Evaluation() {
     current?.verified_grade,
     current?.source,
   ]);
+  useEffect(() => {
+    started.current = performance.now();
+    loaded.current = "";
+  }, [current?.id]);
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!current || loaded.current !== current.id) {
@@ -137,7 +142,8 @@ export default function Evaluation() {
         <h1>Grading evaluation</h1>
         <p className="muted">
           Verify handwriting independently, then inspect the system prediction.
-          Accuracy uses human-verified answers only.
+          Accuracy uses human-verified answers only. Source describes the
+          handwriting; inspect provider cohorts separately to identify real OCR.
         </p>
         <div className="evaluation-controls">
           <label>
