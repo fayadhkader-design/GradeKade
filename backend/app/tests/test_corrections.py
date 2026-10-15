@@ -180,3 +180,46 @@ def test_standalone_assignment_attachment_is_idempotent(client):
     assert response.status_code == 200
     assert api.post(f"/submissions/{submission['id']}/assignment").json() == response.json()
     assert api.get(f"/submissions/{submission['id']}").json()["booklet_id"] == response.json()["booklet_id"]
+
+
+def test_round_target_snapshot_cannot_include_correct_answers_or_another_org(client):
+    from sqlalchemy.exc import IntegrityError
+
+    from app.models import Booklet, Organization
+
+    api, factory = client
+    booklet, _ = initial(api)
+    round_ = start(api, booklet)
+    with factory() as db:
+        # Database enforces one active round even if a caller bypasses the API guard.
+        db.add(
+            CorrectionRound(
+                organization_id=UUID("00000000-0000-4000-8000-000000000001"),
+                booklet_id=UUID(booklet["id"]),
+                round_number=2,
+                unresolved_before=3,
+            )
+        )
+        import pytest
+
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+        org = Organization(name="Other organization")
+        db.add(org)
+        db.flush()
+        other = Booklet(organization_id=org.id, student_id=UUID(booklet["student_id"]), page_count=1)
+        db.add(other)
+        db.flush()
+        foreign_round = CorrectionRound(
+            organization_id=org.id, booklet_id=other.id, round_number=1, unresolved_before=1
+        )
+        db.add(foreign_round)
+        db.commit()
+        foreign_id = foreign_round.id
+    assert api.get(f"/correction-rounds/{foreign_id}").status_code == 404
+    assert api.post(f"/correction-rounds/{foreign_id}/finalize").status_code == 404
+    assert api.get(f"/review-queue?correction_round_id={foreign_id}").status_code == 404
+    assert (
+        api.get(f"/review-queue?correction_round_id={round_['id']}&booklet_id={other.id}").status_code == 404
+    )
