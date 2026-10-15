@@ -43,7 +43,11 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
         db.commit()
 
     manifest = json.loads((SAMPLES / "manifest.json").read_text())
-    synthetic_pixels = image_digest(original) in {manifest["submission_sha256"], manifest["template_sha256"]}
+    synthetic_pixels = image_digest(original) in {
+        manifest["submission_sha256"],
+        manifest["template_sha256"],
+        *manifest.get("correction_sha256", []),
+    }
     stage("aligning", data_origin="synthetic" if synthetic_pixels else "unknown")
     quality = assess_photo(Image.open(BytesIO(original)), settings.photo_blur_minimum)
     stage("aligning", photo_quality=quality)

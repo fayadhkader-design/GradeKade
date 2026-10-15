@@ -592,7 +592,15 @@ def metrics(db: DB):
 
 @router.get("/samples/{filename}")
 def sample_file(filename: str):
-    allowed = {"blank.png", "blank.pdf", "completed.png", "template.json", "answer_key.csv"}
+    allowed = {
+        "blank.png",
+        "blank.pdf",
+        "completed.png",
+        "template.json",
+        "answer_key.csv",
+        "correction-round-1.png",
+        "correction-round-2.png",
+    }
     if filename not in allowed:
         raise HTTPException(404, "Sample not found")
     return FileResponse(SAMPLES / filename, filename=filename)
