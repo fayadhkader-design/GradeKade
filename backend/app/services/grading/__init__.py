@@ -105,10 +105,12 @@ def grade_evidence(
         if failures
         else "poor_photo_quality"
         if not quality_usable
+        else "blank_crop"
+        if blank
         else "ambiguous_ocr"
         if ambiguous
         else "variant_disagreement"
-        if not agreement
+        if len(results) > 1 and not agreement
         else decision.routing_reason
     )
     if reason != decision.routing_reason:

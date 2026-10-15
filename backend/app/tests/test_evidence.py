@@ -43,3 +43,10 @@ def test_severe_quality_gates_and_padding():
     variants = prepare_variants(image, 0, 0, 0.1, 0.1, 6)
     assert variants["color"].size == (66, 86)
     assert variants["grayscale"].mode == "L"
+
+
+def test_blank_and_invalid_single_result_keep_specific_diagnostics():
+    d, _ = grade_evidence([result()], "42", "integer", blank=True)
+    assert d.final_grade is None and d.routing_reason == "blank_crop"
+    d, _ = grade_evidence([OCRResult("42 or 47", 0.999)], "42", "integer")
+    assert d.final_grade is None and d.routing_reason == "invalid_answer"

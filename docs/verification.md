@@ -14,7 +14,7 @@ Live Mathpix API calls and live local PostgreSQL were not tested. GitHub CI has 
 
 ## Real OCR / evaluation milestone — October 14, 2026
 
-- Backend: **79 passed, 1 skipped** (optional local live PostgreSQL test); Ruff check/format passed. Migration upgrade and Alembic schema check passed.
+- Backend: **80 passed, 1 skipped** (optional local live PostgreSQL test); Ruff check/format passed. Migration upgrade and Alembic schema check passed.
 - Frontend: **3 unit tests**, TypeScript, Prettier and production build passed.
 - Browser: **7 passed** with isolated SQLite/production frontend. Includes desktop annotation, CSV/JSON/crop ZIP export, phone layout, filtered last-record navigation, existing booklet capture/draft/retry/review and keyboard workflows.
 - Mathpix HTTP/provider contract and full-page pipeline were exercised with simulated HTTP responses. No live paid request was made; credentials and real photographed handwriting were deferred by the user.
