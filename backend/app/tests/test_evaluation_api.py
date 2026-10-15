@@ -29,7 +29,7 @@ def test_truth_export_preserves_ai_and_rejects_fixture_as_real(client):
     data = api.get("/evaluation?source=synthetic").json()
     assert data["report"]["verified_answers"] == 1
     assert data["report"]["unverified_automated_answers"] == 14
-    assert api.get(after["variant_urls"]["color"]).status_code == 200
+    assert api.get(after["variant_urls"]["color"].removeprefix("/api")).status_code == 200
     assert api.get(f"/question-submissions/{answer['id']}/variant/unknown").status_code == 404
     zipped = api.get("/evaluation/export?source=synthetic")
     with ZipFile(BytesIO(zipped.content)) as archive:
