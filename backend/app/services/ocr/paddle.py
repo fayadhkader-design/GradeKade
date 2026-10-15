@@ -48,6 +48,8 @@ class PaddleOCRProvider:
                         messages.put(json.loads(line[len(PREFIX) :]))
                     except (ValueError, TypeError):
                         messages.put({"error": "paddle_invalid_response"})
+        except (OSError, ValueError):
+            pass  # The owning process may close the pipe during timeout/shutdown.
         finally:
             messages.put({"error": "paddle_worker_exited"})
 

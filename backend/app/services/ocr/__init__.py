@@ -48,9 +48,9 @@ class AnswerRecognition:
                 candidate = None
             from dataclasses import replace
 
-            return replace(result, normalized_candidate=candidate)
+            return replace(result, normalized_candidate=candidate, provider_name=self.name)
         except (httpx.HTTPError, ValueError, TypeError, KeyError):
-            return OCRResult("", None, error="ocr_provider_error")
+            return OCRResult("", None, error="ocr_provider_error", provider_name=self.name)
 
 
 class MockOCRProvider(AnswerRecognition):
