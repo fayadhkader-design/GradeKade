@@ -1,4 +1,5 @@
 "use client";
+import { ocrLabel } from "@/lib/ocr";
 import { useEffect, useState } from "react";
 import { api, Submission } from "@/lib/api";
 export function GradeBadge({ status }: { status: string }) {
@@ -72,13 +73,9 @@ export default function Results({
       {submission.error && <p className="error">{submission.error}</p>}
       {submission.processing && (
         <p className="notice">
-          OCR:{" "}
-          {submission.processing.ocr_provider === "synthetic_fixture"
-            ? "Synthetic fixture (simulated, not handwriting recognition)"
-            : submission.processing.ocr_provider}{" "}
-          · Auto-grade threshold:{" "}
-          {(submission.processing.threshold * 100).toFixed(1)}%. Confidence is
-          not calibrated.
+          OCR: {ocrLabel(submission.processing.ocr_provider)} · Auto-grade
+          threshold: {(submission.processing.threshold * 100).toFixed(1)}%.
+          Confidence is not calibrated.
         </p>
       )}
       {submission.alignment && !submission.alignment.verified && (

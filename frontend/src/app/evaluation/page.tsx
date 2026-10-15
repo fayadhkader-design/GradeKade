@@ -1,4 +1,5 @@
 "use client";
+import { ocrLabel } from "@/lib/ocr";
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState, useRef } from "react";
 import { ArrowLeft, ArrowRight, Download } from "lucide-react";
@@ -336,11 +337,7 @@ export default function Evaluation() {
                     <dl className="answer-facts">
                       <div>
                         <dt>Provider</dt>
-                        <dd>
-                          {current.ocr_provider === "mathpix"
-                            ? "REAL OCR · Mathpix"
-                            : `MOCK / SYNTHETIC · ${current.ocr_provider}`}
-                        </dd>
+                        <dd>{ocrLabel(current.ocr_provider)}</dd>
                       </div>
                       <div>
                         <dt>OCR output</dt>

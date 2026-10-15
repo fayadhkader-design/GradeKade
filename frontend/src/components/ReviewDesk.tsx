@@ -1,4 +1,5 @@
 "use client";
+import { ocrLabel } from "@/lib/ocr";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, X, Pencil, ArrowRight, CheckCheck } from "lucide-react";
 import { api, post, Answer } from "@/lib/api";
@@ -198,9 +199,7 @@ export default function ReviewDesk({
           </div>
           <p className="muted">
             {current.routing_reason.replaceAll("_", " ")} ·{" "}
-            {current.ocr_provider === "synthetic_fixture"
-              ? "Synthetic demo interpretation"
-              : current.ocr_provider}
+            {ocrLabel(current.ocr_provider)}
           </p>
           <button
             className="text-button"

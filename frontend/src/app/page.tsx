@@ -1,4 +1,5 @@
 "use client";
+import { ocrLabel, ocrDescription } from "@/lib/ocr";
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
@@ -233,9 +234,7 @@ export default function Workspace() {
           <span>Grading workspace</span>
           <div>
             <span className="badge neutral">
-              {metrics?.ocr_provider === "mathpix"
-                ? "Mathpix configured"
-                : "Mock OCR"}
+              {ocrLabel(metrics?.ocr_provider)}
             </span>
             <span className="avatar" aria-label="Local demo admin">
               GK
@@ -611,9 +610,7 @@ export default function Workspace() {
                     <p className="muted">
                       {synthetic
                         ? "Only the exact original blank and completed demo PNGs are supported. OCR predictions are simulated."
-                        : metrics?.ocr_provider === "mathpix"
-                          ? "Answer crops will be sent to Mathpix for recognition."
-                          : "Mock OCR is active. Arbitrary uploads receive no recognized text and all answers go to human review."}
+                        : ocrDescription(metrics?.ocr_provider)}
                     </p>
                     <button
                       className="primary"

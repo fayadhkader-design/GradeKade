@@ -1,4 +1,5 @@
 "use client";
+import { ocrLabel, ocrDescription } from "@/lib/ocr";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -398,11 +399,7 @@ export default function ScanWorkspace() {
           GradeKade
         </Link>
         <span className="badge neutral">
-          {draft.synthetic
-            ? "Synthetic demo"
-            : provider === "mathpix"
-              ? "Mathpix OCR"
-              : "Mock OCR"}
+          {draft.synthetic ? "Synthetic demo" : ocrLabel(provider)}
         </span>
       </header>
       <main className="scan-shell">
@@ -762,9 +759,7 @@ export default function ScanWorkspace() {
                   <p>
                     {draft.synthetic
                       ? "Simulated predictions. Camera photos must use this option off."
-                      : provider === "mathpix"
-                        ? "Answer crops will be sent to Mathpix."
-                        : "Mock OCR is active. All photographed answers will need human review."}
+                      : ocrDescription(provider)}
                   </p>
                   {draft.synthetic && configured && !draft.submitted && (
                     <button

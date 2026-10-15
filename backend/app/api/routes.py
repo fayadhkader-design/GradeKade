@@ -217,6 +217,8 @@ def health():
         "status": "ok" if getattr(provider, "available", True) else "degraded",
         "ocr_available": getattr(provider, "available", True),
         "ocr_diagnostic": getattr(provider, "diagnostic", None),
+        "experimental_auto_grade": provider.name == "paddle"
+        and settings.paddle_allow_experimental_auto_grade,
         "ocr_provider": provider.name,
         "demo_only": True,
         "ocr_fallback": settings.ocr_provider == "mathpix" and provider.name == "mock",
