@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import QuestionSubmission, QuestionTemplate, WorksheetSubmission, WorksheetTemplate, now
 from app.services.alignment import align_submission_to_template
+from app.services.corrections import targets_for_submission
 from app.services.cropping import crop_region, is_blank, prepare_variants
 from app.services.grading import grade_evidence
 from app.services.ingestion import image_digest, png_bytes
@@ -29,6 +30,9 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
         .where(QuestionTemplate.worksheet_template_id == template.id)
         .order_by(QuestionTemplate.question_number)
     ).all()
+    targets = targets_for_submission(db, submission)
+    if targets is not None:
+        questions = [q for q in questions if q.id in targets]
     if not questions:
         raise ValueError("Configure at least one answer box before processing")
     original = storage.read(submission.uploaded_file_path)
@@ -196,6 +200,7 @@ def process_submission(db: Session, submission: WorksheetSubmission, storage: Lo
             QuestionSubmission(
                 worksheet_submission_id=submission.id,
                 question_template_id=question.id,
+                initial_question_submission_id=targets.get(question.id) if targets is not None else None,
                 crop_image_path=key,
                 raw_ocr_text=results[0].raw_text,
                 expected_answer=question.expected_answer,

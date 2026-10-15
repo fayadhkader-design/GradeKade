@@ -6,13 +6,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
 from app.models import (
     Booklet,
+    CorrectionPageSlot,
+    CorrectionRound,
     Organization,
     QuestionSubmission,
     QuestionTemplate,
@@ -169,8 +171,20 @@ def submission_json(db, submission, detail=True):
     final = submission.status == "completed"
     return {
         "id": str(submission.id),
-        "booklet_id": str(submission.booklet_id) if submission.booklet_id else None,
-        "page_number": submission.page_number,
+        "booklet_id": str(submission.booklet_id)
+        if submission.booklet_id
+        else str(db.get(CorrectionRound, submission.correction_round_id).booklet_id)
+        if submission.correction_round_id
+        else None,
+        "correction_round_id": str(submission.correction_round_id)
+        if submission.correction_round_id
+        else None,
+        "source_submission_id": str(submission.source_submission_id)
+        if submission.source_submission_id
+        else None,
+        "page_number": submission.page_number
+        if not submission.source_submission_id
+        else db.get(WorksheetSubmission, submission.source_submission_id).page_number,
         "processing_seconds": submission.processing_seconds,
         "student_name": " ".join(filter(None, [student.first_name, student.last_name])),
         "template_name": template.name,
@@ -394,6 +408,19 @@ def get_submission(submission_id: UUID, db: DB):
 @router.post("/submissions/{submission_id}/process")
 def process(submission_id: UUID, db: DB):
     submission = owned(db, WorksheetSubmission, submission_id)
+    if submission.correction_round_id:
+        round_ = owned(db, CorrectionRound, submission.correction_round_id)
+        db.refresh(round_, with_for_update=True)
+        slot = db.scalar(
+            select(CorrectionPageSlot)
+            .where(
+                CorrectionPageSlot.correction_round_id == round_.id,
+                CorrectionPageSlot.source_submission_id == submission.source_submission_id,
+            )
+            .with_for_update()
+        )
+        if round_.completed_at or slot is None or slot.current_submission_id != submission.id:
+            raise HTTPException(409, "This correction capture is finalized or was superseded by a retake")
     if submission.status in {"completed", "needs_review"}:
         return submission_json(db, submission)
     claimed = db.execute(
@@ -450,9 +477,13 @@ def answer_crop(answer_id: UUID, db: DB):
 
 
 @router.get("/review-queue")
-def review_queue(db: DB, booklet_id: UUID | None = None):
+def review_queue(db: DB, booklet_id: UUID | None = None, correction_round_id: UUID | None = None):
     if booklet_id is not None:
         owned(db, Booklet, booklet_id)
+    if correction_round_id:
+        round_ = owned(db, CorrectionRound, correction_round_id)
+        if booklet_id and round_.booklet_id != booklet_id:
+            raise HTTPException(404, "Round not found in this booklet")
     answers = db.scalars(
         select(QuestionSubmission)
         .join(WorksheetSubmission)
@@ -461,7 +492,23 @@ def review_queue(db: DB, booklet_id: UUID | None = None):
             WorksheetSubmission.organization_id == settings.organization_id,
             WorksheetSubmission.status == "needs_review",
             QuestionSubmission.review_status == "needs_review",
-            *([WorksheetSubmission.booklet_id == booklet_id] if booklet_id else []),
+            *(
+                [
+                    or_(
+                        WorksheetSubmission.booklet_id == booklet_id,
+                        WorksheetSubmission.correction_round_id.in_(
+                            select(CorrectionRound.id).where(CorrectionRound.booklet_id == booklet_id)
+                        ),
+                    )
+                ]
+                if booklet_id
+                else []
+            ),
+            *(
+                [WorksheetSubmission.correction_round_id == correction_round_id]
+                if correction_round_id
+                else []
+            ),
         )
         .order_by(
             *(
@@ -475,7 +522,9 @@ def review_queue(db: DB, booklet_id: UUID | None = None):
     return [
         answer_json(db, q)
         | {
-            "page_number": db.get(WorksheetSubmission, q.worksheet_submission_id).page_number,
+            "page_number": submission_json(db, db.get(WorksheetSubmission, q.worksheet_submission_id), False)[
+                "page_number"
+            ],
             "student_name": submission_json(
                 db, db.get(WorksheetSubmission, q.worksheet_submission_id), False
             )["student_name"],
