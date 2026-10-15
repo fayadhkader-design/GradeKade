@@ -223,3 +223,17 @@ def test_round_target_snapshot_cannot_include_correct_answers_or_another_org(cli
     assert (
         api.get(f"/review-queue?correction_round_id={round_['id']}&booklet_id={other.id}").status_code == 404
     )
+
+
+def test_initial_all_correct_is_complete_and_cannot_be_corrected(client):
+    api, _ = client
+    ids = setup(api)
+    booklet = create(api, ids, count=1, synthetic=False)
+    submission = page(api, booklet, ids["template_id"], 1).json()
+    api.post(f"/submissions/{submission['id']}/process")
+    for answer in api.get(f"/review-queue?booklet_id={booklet['id']}").json():
+        api.post(f"/question-submissions/{answer['id']}/review", json={"grade": "correct"})
+    result = api.get(f"/booklets/{booklet['id']}").json()
+    assert result["status"] == "completed" and result["workflow"]["unresolved_count"] == 0
+    assert api.post(f"/booklets/{booklet['id']}/correction-rounds").status_code == 409
+    assert all(len(q["attempts"]) == 1 for q in api.get(f"/booklets/{booklet['id']}/question-history").json())
