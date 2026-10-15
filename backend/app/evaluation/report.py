@@ -48,7 +48,12 @@ def summarize(rows):
     )
     alignment = [r for r in rows if r.get("alignment_verified") is not None]
     timed = [r["review_seconds"] for r in labeled if r.get("review_seconds") is not None]
+    inference = [r["inference_seconds"] for r in rows if isinstance(r.get("inference_seconds"), (int, float))]
+    ocr_times = [r["ocr_seconds"] for r in rows if isinstance(r.get("ocr_seconds"), (int, float))]
     return {
+        "average_inference_seconds_per_answer": ratio(sum(inference), len(inference)),
+        "timed_inference_answers": len(inference),
+        "average_ocr_seconds_per_answer": ratio(sum(ocr_times), len(ocr_times)),
         "total_answers": total,
         "verified_answers": len(labeled),
         "transcribed_answers": len(readable),
@@ -104,6 +109,10 @@ def report(rows, pages=None):
         "by_answer_type": {k: summarize(v) for k, v in by_type.items()},
         "by_confidence_bucket": {k: summarize(v) for k, v in by_confidence.items()},
         "cohorts": {k: summarize(v) for k, v in cohorts.items()},
+        "by_provider": {
+            k: summarize([r for r in rows if r.get("ocr_provider", "unknown") == k])
+            for k in sorted({r.get("ocr_provider", "unknown") for r in rows})
+        },
         "notes": [
             "Accuracy excludes missing human truth; coverage includes all answers.",
             "Grade decision accuracy excludes abstentions; see its denominator.",
