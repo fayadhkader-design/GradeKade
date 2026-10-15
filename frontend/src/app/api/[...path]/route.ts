@@ -8,7 +8,7 @@ async function proxy(
   context: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await context.params;
-  const target = `${process.env.API_BASE_URL || "http://127.0.0.1:8000"}/${path.map(encodeURIComponent).join("/")}`;
+  const target = `${process.env.API_BASE_URL || "http://127.0.0.1:8000"}/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`;
   let body: Uint8Array | undefined;
   if (request.method === "POST" && request.body) {
     const reader = request.body.getReader();
