@@ -34,7 +34,10 @@ export type Answer = {
   raw_ocr_text: string;
   normalized_answer: string | null;
   expected_answer: string;
-  ocr_confidence: number;
+  ocr_confidence: number | null;
+  answer_type?: AnswerType;
+  decision?: string;
+  evidence?: Record<string, unknown>;
   grading_confidence: number;
   system_grade: string;
   final_grade: string | null;
@@ -63,7 +66,15 @@ export type Submission = {
   original_url: string;
   aligned_url: string | null;
   alignment: { verified: boolean; reason: string; inlier_ratio: number } | null;
-  processing: { ocr_provider: string; threshold: number } | null;
+  processing: {
+    ocr_provider: string;
+    threshold: number;
+    stage?: string;
+    ocr_mode?: string;
+    questions_recognized?: number;
+    questions_total?: number;
+    retake_required?: boolean;
+  } | null;
   error: string | null;
   answers: Answer[];
 };
