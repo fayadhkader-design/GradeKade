@@ -25,6 +25,17 @@ test("evaluation saves independent truth and inspects evidence on desktop and ph
   expect(
     (await request.post(`/api/submissions/${submission.id}/process`)).ok(),
   ).toBeTruthy();
+  // Other workflow tests create historical answers on this shared server.
+  // Keep this annotation UI exercise scoped to the submission it owns.
+  await page.route("**/api/evaluation?*", async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    data.items = data.items.filter(
+      (item: { submission_id: string }) => item.submission_id === submission.id,
+    );
+    data.total = data.items.length;
+    await route.fulfill({ response, json: data });
+  });
   await page.goto("/evaluation");
   await expect(
     page.getByText(/MOCK OCR · No handwriting recognition/),
