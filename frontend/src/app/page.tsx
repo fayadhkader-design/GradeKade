@@ -718,6 +718,7 @@ export default function Workspace() {
             )}
           </>
         )}
+        <Link href="/evaluation">Internal grading evaluation</Link>
         <footer className="workspace-footer">
           GradeKade 0.1{" "}
           <span>Paper practice. Human judgment. Less repetition.</span>
