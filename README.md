@@ -4,6 +4,10 @@ An internal, AI-assisted arithmetic worksheet grading MVP. Configure a blank tem
 
 **Development/demo use only. Do not upload identifiable student educational records until production privacy/security controls are completed.**
 
+## Mobile scanning preview
+
+The local mobile-first milestone is at `/scan`: guided camera capture, persistent drafts, ordered booklet batches, upload retry, phone exception review and observed workflow timings. See the [mobile walkthrough and limitations](docs/mobile-workflow.md). Automatic capture-quality checks and live handwriting evaluation remain future work.
+
 ## What works
 
 - Dashboard: worksheet/answer counts, auto-grade coverage, historical human-review rate, current queue size.
