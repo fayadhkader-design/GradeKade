@@ -1940,3 +1940,55 @@ input.sr-only {
   border-bottom: 1px solid var(--line, #d9ddd7);
   font-size: 13px;
 }
+
+.correction-summary,
+.question-history {
+  margin: 28px 0;
+}
+.correction-summary h2,
+.question-history h2 {
+  margin-bottom: 14px;
+}
+.correction-summary > p {
+  margin: 12px 0;
+}
+.correction-pages {
+  display: grid;
+  gap: 24px;
+  margin: 24px 0;
+}
+.correction-page {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  display: grid;
+  gap: 16px;
+}
+.correction-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+}
+.question-history details {
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+.question-history summary {
+  cursor: pointer;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.history-attempt {
+  padding: 20px 0;
+}
+.history-attempt img {
+  display: block;
+  max-width: 100%;
+  max-height: 150px;
+  object-fit: contain;
+  margin: 12px 0;
+}
+.history-attempt p {
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
