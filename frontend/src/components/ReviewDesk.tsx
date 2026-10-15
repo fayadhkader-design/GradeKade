@@ -9,12 +9,16 @@ export default function ReviewDesk({
   changed,
   openSubmission,
   bookletId,
+  correctionRoundId,
   finished,
+  finishedLabel = "Back to booklet summary",
 }: {
   changed: () => void;
   openSubmission: (id: string) => void;
   bookletId?: string;
+  correctionRoundId?: string;
   finished?: () => void;
+  finishedLabel?: string;
 }) {
   const [queue, setQueue] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,24 +33,25 @@ export default function ReviewDesk({
   const reviewStarted = useRef(0);
   const input = useRef<HTMLInputElement>(null);
   const current = queue[0];
+  const scope = correctionRoundId
+    ? `?correction_round_id=${correctionRoundId}`
+    : bookletId
+      ? `?booklet_id=${bookletId}`
+      : "";
   useEffect(() => {
     if (bookletId && current?.id) window.scrollTo(0, 0);
   }, [bookletId, current?.id]);
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setQueue(
-        await api<Answer[]>(
-          `/review-queue${bookletId ? `?booklet_id=${bookletId}` : ""}`,
-        ),
-      );
+      setQueue(await api<Answer[]>(`/review-queue${scope}`));
       setError("");
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [bookletId]);
+  }, [scope]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -72,11 +77,7 @@ export default function ReviewDesk({
           }),
         );
         if (queue.length === 1) {
-          setQueue(
-            await api<Answer[]>(
-              `/review-queue${bookletId ? `?booklet_id=${bookletId}` : ""}`,
-            ),
-          );
+          setQueue(await api<Answer[]>(`/review-queue${scope}`));
         } else setQueue((q) => q.filter((a) => a.id !== current.id));
         setDone((n) => n + 1);
         setLastSubmission(current.submission_id);
@@ -100,6 +101,7 @@ export default function ReviewDesk({
       loadedCrop,
       queue.length,
       bookletId,
+      scope,
     ],
   );
   useEffect(() => {
@@ -142,7 +144,7 @@ export default function ReviewDesk({
         </p>
         {finished && (
           <button className="primary" onClick={finished}>
-            Back to booklet summary <ArrowRight size={17} />
+            {finishedLabel} <ArrowRight size={17} />
           </button>
         )}
         {lastSubmission && !finished && (

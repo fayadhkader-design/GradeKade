@@ -51,6 +51,8 @@ export type Answer = {
 };
 export type Submission = {
   booklet_id?: string | null;
+  correction_round_id?: string | null;
+  source_submission_id?: string | null;
   page_number?: number | null;
   processing_seconds?: number | null;
   id: string;
@@ -124,6 +126,7 @@ export const post = (body?: unknown): RequestInit => ({
 });
 
 export type Booklet = {
+  workflow: CorrectionWorkflow;
   id: string;
   student_id: string;
   student_name: string;
@@ -152,4 +155,62 @@ export type Booklet = {
     difference_seconds: number | null;
     comparable: boolean;
   };
+};
+
+export type CorrectionRound = {
+  id: string;
+  booklet_id: string;
+  round_number: number;
+  created_at: string;
+  completed_at: string | null;
+  status: string;
+  unresolved_before: number;
+  unresolved_after: number | null;
+  corrected: number;
+  waiting: number;
+  auto_graded: number;
+  human_reviews: number;
+  review_seconds: number;
+  timed_reviews: number;
+  pages: {
+    source_submission_id: string;
+    page_number: number;
+    question_numbers: number[];
+    submission: Submission | null;
+  }[];
+};
+export type CorrectionWorkflow = {
+  status: string;
+  completed_at: string | null;
+  initial_accuracy: number | null;
+  initial_correct: number;
+  total_questions: number;
+  initially_incorrect: number | null;
+  unresolved_count: number | null;
+  current_correct: number;
+  current_accuracy: number | null;
+  correction_round_count: number;
+  total_correction_attempts: number;
+  time_to_completion_seconds: number | null;
+  active_round_id: string | null;
+  unresolved: {
+    initial_answer_id: string;
+    page_number: number;
+    question_number: number;
+  }[];
+  rounds: CorrectionRound[];
+};
+export type QuestionHistory = {
+  initial_answer_id: string;
+  question_number: number;
+  page_number: number;
+  expected_answer: string;
+  resolved: boolean;
+  attempts: (Answer & {
+    round_number: number;
+    created_at: string;
+    reviewed_at: string | null;
+    review_seconds: number | null;
+    original_url: string;
+  })[];
 };
