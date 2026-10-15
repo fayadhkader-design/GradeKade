@@ -1,7 +1,8 @@
 "use client";
 import { ocrLabel } from "@/lib/ocr";
 import { useEffect, useState } from "react";
-import { api, Submission } from "@/lib/api";
+import Link from "next/link";
+import { api, post, Submission } from "@/lib/api";
 export function GradeBadge({ status }: { status: string }) {
   return (
     <span
@@ -23,6 +24,7 @@ export default function Results({
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [error, setError] = useState("");
   const [aligned, setAligned] = useState(true);
+  const [attaching, setAttaching] = useState(false);
   useEffect(() => {
     let active = true;
     setSubmission(null);
@@ -70,6 +72,38 @@ export default function Results({
           </span>
         </div>
       </div>
+      {submission.status === "completed" && !submission.correction_round_id && (
+        <p className="notice">
+          Grading is final for this scan. Correction history is tracked in its
+          booklet.{" "}
+          {submission.booklet_id ? (
+            <Link href={`/booklets/${submission.booklet_id}`}>
+              Open booklet and corrections
+            </Link>
+          ) : (
+            <button
+              className="secondary"
+              disabled={attaching}
+              onClick={async () => {
+                setAttaching(true);
+                try {
+                  const result = await api<{ booklet_id: string }>(
+                    `/submissions/${id}/assignment`,
+                    post(),
+                  );
+                  window.location.assign(`/booklets/${result.booklet_id}`);
+                } catch (e) {
+                  setError((e as Error).message);
+                } finally {
+                  setAttaching(false);
+                }
+              }}
+            >
+              Track correction rounds
+            </button>
+          )}
+        </p>
+      )}
       {submission.error && <p className="error">{submission.error}</p>}
       {submission.processing && (
         <p className="notice">

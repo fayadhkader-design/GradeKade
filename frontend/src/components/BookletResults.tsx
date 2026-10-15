@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { api, post, Booklet } from "@/lib/api";
 import ReviewDesk from "@/components/ReviewDesk";
+import QuestionHistory from "@/components/QuestionHistory";
 import { GradeBadge } from "@/components/Results";
 
 function seconds(value: number) {
@@ -158,6 +159,11 @@ export default function BookletResults({ id }: { id: string }) {
                   Final score: {booklet.correct} / {booklet.answers_total} (
                   {booklet.score_percent}%)
                 </p>
+              ) : booklet.status === "needs_correction" ? (
+                <p className="booklet-score">
+                  Current score: {booklet.correct} / {booklet.answers_total} (
+                  {booklet.score_percent}%) · Corrections required
+                </p>
               ) : (
                 <p>
                   {booklet.processed_pages} of {booklet.page_count} pages
@@ -180,6 +186,86 @@ export default function BookletResults({ id }: { id: string }) {
                 </Link>
               </p>
             )}
+            <section className="correction-summary">
+              <h2>Correction progress</h2>
+              <p>
+                Initial attempt: {booklet.workflow.initial_correct} /{" "}
+                {booklet.workflow.total_questions} correct
+                {booklet.workflow.initial_accuracy === null
+                  ? " · grading pending"
+                  : ` (${booklet.workflow.initial_accuracy}%)`}
+              </p>
+              {booklet.workflow.unresolved_count !== null && (
+                <p>
+                  <strong>
+                    {booklet.workflow.unresolved_count} corrections remaining
+                  </strong>
+                </p>
+              )}
+              {booklet.workflow.unresolved.length > 0 && (
+                <p className="muted">
+                  {booklet.workflow.unresolved
+                    .map((q) => `Page ${q.page_number} Q${q.question_number}`)
+                    .join(" · ")}
+                </p>
+              )}
+              {booklet.workflow.active_round_id ? (
+                <Link
+                  className="primary"
+                  href={`/corrections/${booklet.workflow.active_round_id}`}
+                >
+                  Continue correction round <ArrowRight size={18} />
+                </Link>
+              ) : (
+                booklet.status === "needs_correction" && (
+                  <button
+                    className="primary"
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        const round = await api<{ id: string }>(
+                          `/booklets/${id}/correction-rounds`,
+                          post(),
+                        );
+                        window.location.assign(`/corrections/${round.id}`);
+                      } catch (e) {
+                        setError((e as Error).message);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Start correction round <ArrowRight size={18} />
+                  </button>
+                )
+              )}
+              {booklet.workflow.rounds.map((r) => (
+                <p key={r.id}>
+                  <Link href={`/corrections/${r.id}`}>
+                    Correction round {r.round_number}
+                  </Link>
+                  : {r.corrected} of {r.unresolved_before} corrected ·{" "}
+                  {r.completed_at
+                    ? `${r.unresolved_after} remaining`
+                    : "round in progress"}
+                </p>
+              ))}
+              <p className="muted">
+                {booklet.workflow.correction_round_count} correction rounds ·{" "}
+                {booklet.workflow.total_correction_attempts} correction answer
+                attempts · {booklet.workflow.initially_incorrect ?? "—"}{" "}
+                initially incorrect
+              </p>
+              {booklet.workflow.time_to_completion_seconds !== null && (
+                <p>
+                  Time to completion:{" "}
+                  {seconds(booklet.workflow.time_to_completion_seconds)}{" "}
+                  (includes pauses).
+                </p>
+              )}
+            </section>
+            <QuestionHistory bookletId={id} />
             <section className="booklet-page-list">
               <h2>Page results</h2>
               {booklet.pages.map((p, i) => (
@@ -229,7 +315,7 @@ export default function BookletResults({ id }: { id: string }) {
             <section className="workflow-timing">
               <h2>
                 <Clock3 size={19} />
-                Observed workflow time
+                Initial grading time
               </h2>
               <dl>
                 <div>
@@ -260,7 +346,8 @@ export default function BookletResults({ id }: { id: string }) {
                 </p>
               )}
               <p>
-                Elapsed timers include pauses and interruptions. Processing time
+                Initial-attempt timers include pauses and interruptions.
+                Correction review counts are recorded per round. Processing time
                 is separate. These observations are not a claim of labor
                 savings.
               </p>

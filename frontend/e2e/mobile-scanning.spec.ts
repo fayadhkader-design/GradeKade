@@ -102,7 +102,9 @@ test("phone draft survives reload and interrupted upload; ordered booklet review
     .getByRole("button", { name: "Back to booklet summary", exact: true })
     .click();
   await expect(
-    page.getByText("Final score: 34 / 40 (85%)", { exact: true }),
+    page.getByText("Current score: 34 / 40 (85%) · Corrections required", {
+      exact: true,
+    }),
   ).toBeVisible();
   await page.getByLabel("Manual grading baseline", { exact: true }).fill("120");
   await page.getByRole("button", { name: "Save comparison" }).click();

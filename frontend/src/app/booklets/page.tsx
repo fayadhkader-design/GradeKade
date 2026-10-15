@@ -51,7 +51,8 @@ export default function BookletsPage() {
               <div>
                 <strong>{b.student_name}</strong>
                 <span>
-                  {b.page_count} pages · {b.waiting} answers waiting
+                  {b.page_count} pages · {b.waiting} answers waiting ·{" "}
+                  {b.workflow.unresolved_count ?? "—"} corrections remaining
                 </span>
               </div>
               <GradeBadge status={b.status} />
