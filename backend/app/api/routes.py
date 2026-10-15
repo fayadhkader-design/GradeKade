@@ -123,6 +123,20 @@ def answer_json(db, answer):
         "submission_id": str(answer.worksheet_submission_id),
         "question_number": question.question_number,
         "crop_url": f"/api/question-submissions/{answer.id}/crop",
+        "answer_type": question.answer_type,
+        "decision": (answer.evidence or {}).get(
+            "outcome",
+            "AUTO_CORRECT"
+            if answer.review_status == "auto_accepted" and answer.system_grade == "correct"
+            else "AUTO_INCORRECT"
+            if answer.review_status == "auto_accepted"
+            else "NEEDS_REVIEW",
+        ),
+        "evidence": {k: v for k, v in (answer.evidence or {}).items() if k != "crop_variants"},
+        "variant_urls": {
+            name: f"/api/question-submissions/{answer.id}/variant/{name}"
+            for name in (answer.evidence or {}).get("crop_variants", {})
+        },
         **{
             name: getattr(answer, name)
             for name in [
@@ -140,7 +154,7 @@ def answer_json(db, answer):
                 "ocr_provider",
             ]
         },
-    }
+    } | {"ocr_confidence": (answer.evidence or {}).get("provider_confidence", answer.ocr_confidence)}
 
 
 def submission_json(db, submission, detail=True):
@@ -392,6 +406,7 @@ def process(submission_id: UUID, db: DB):
     except Exception:  # noqa: BLE001 -- Persist failed state without disclosing processing internals.
         db.rollback()
         submission = owned(db, WorksheetSubmission, submission_id)
+        submission.processing_metadata = {**(submission.processing_metadata or {}), "stage": "failed"}
         submission.status, submission.error = (
             "failed",
             "Processing failed. Check the template and file, then retry.",
@@ -486,6 +501,7 @@ def review(answer_id: UUID, payload: ReviewCreate, db: DB):
     db.flush()
     db.refresh(answer)
     finalize_submission(db, submission)
+    submission.processing_metadata = {**(submission.processing_metadata or {}), "stage": submission.status}
     db.commit()
     return answer_json(db, answer)
 
