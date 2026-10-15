@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.booklets import router as booklet_router
 from app.api.routes import ensure_demo_identity, router
 from app.config import settings
 from app.db import SessionLocal
@@ -40,3 +41,5 @@ async def upload_limit(request: Request, call_next):
 
 
 app.include_router(router)
+
+app.include_router(booklet_router)
