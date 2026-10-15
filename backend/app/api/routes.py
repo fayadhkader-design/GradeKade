@@ -1,5 +1,6 @@
 import json
 from io import BytesIO
+from time import perf_counter
 from typing import Annotated
 from uuid import UUID
 
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.models import (
+    Booklet,
     Organization,
     QuestionSubmission,
     QuestionTemplate,
@@ -153,6 +155,9 @@ def submission_json(db, submission, detail=True):
     final = submission.status == "completed"
     return {
         "id": str(submission.id),
+        "booklet_id": str(submission.booklet_id) if submission.booklet_id else None,
+        "page_number": submission.page_number,
+        "processing_seconds": submission.processing_seconds,
         "student_name": " ".join(filter(None, [student.first_name, student.last_name])),
         "template_name": template.name,
         "status": submission.status,
@@ -379,8 +384,10 @@ def process(submission_id: UUID, db: DB):
         raise HTTPException(409, "This worksheet is already being processed")
     db.commit()
     db.refresh(submission)
+    started = perf_counter()
     try:
         process_submission(db, submission, storage)
+        submission.processing_seconds = perf_counter() - started
         db.commit()
     except Exception:  # noqa: BLE001 -- Persist failed state without disclosing processing internals.
         db.rollback()
@@ -419,7 +426,9 @@ def answer_crop(answer_id: UUID, db: DB):
 
 
 @router.get("/review-queue")
-def review_queue(db: DB):
+def review_queue(db: DB, booklet_id: UUID | None = None):
+    if booklet_id is not None:
+        owned(db, Booklet, booklet_id)
     answers = db.scalars(
         select(QuestionSubmission)
         .join(WorksheetSubmission)
@@ -428,16 +437,24 @@ def review_queue(db: DB):
             WorksheetSubmission.organization_id == settings.organization_id,
             WorksheetSubmission.status == "needs_review",
             QuestionSubmission.review_status == "needs_review",
+            *([WorksheetSubmission.booklet_id == booklet_id] if booklet_id else []),
         )
-        .order_by(WorksheetSubmission.created_at, QuestionTemplate.question_number)
+        .order_by(
+            *(
+                [WorksheetSubmission.page_number, QuestionTemplate.question_number]
+                if booklet_id
+                else [WorksheetSubmission.created_at, QuestionTemplate.question_number]
+            )
+        )
         .limit(200)
     ).all()
     return [
         answer_json(db, q)
         | {
+            "page_number": db.get(WorksheetSubmission, q.worksheet_submission_id).page_number,
             "student_name": submission_json(
                 db, db.get(WorksheetSubmission, q.worksheet_submission_id), False
-            )["student_name"]
+            )["student_name"],
         }
         for q in answers
     ]
@@ -457,6 +474,7 @@ def review(answer_id: UUID, payload: ReviewCreate, db: DB):
         "reviewed_at": now(),
         "reviewed_by": DEMO_USER_ID,
         "reviewed_answer": payload.recognized_answer,
+        "review_seconds": payload.review_seconds,
     }
     result = db.execute(
         update(QuestionSubmission)
