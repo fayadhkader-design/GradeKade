@@ -65,6 +65,8 @@ def test_agreement_is_opt_in_and_never_a_provider_probability():
     results = [provider().parse_result({"raw_text": "42"}, "integer")] * 3
     decision, evidence = grade_evidence(results, "42", "integer")
     assert decision.final_grade is None
+    decision, _ = grade_evidence(results, "42", "integer", correct_threshold=0)
+    assert decision.final_grade is None and decision.routing_reason == "missing_provider_confidence"
     decision, evidence = grade_evidence(results, "42", "integer", allow_unscored_agreement=True)
     assert decision.final_grade == "correct" and evidence["experimental_auto_grade"]
     assert evidence["strategy"] == "experimental_unscored_variant_agreement_v1"
@@ -149,3 +151,126 @@ def test_worker_timeout_stops_before_next_crop(monkeypatch, tmp_path):
     monkeypatch.setattr(p, "_stop", lambda: stopped.append(True))
     result = p.recognize_answer(b"image", "integer")
     assert stopped and result.error == "paddle_inference_failed"
+
+
+def test_provider_keeps_one_real_worker_for_multiple_requests(tmp_path, monkeypatch):
+    (tmp_path / "paddleocr.py").write_text("""
+print("third-party initialization progress")
+class Result:
+    json = {"res": {"rec_formula": "72"}}
+class FormulaRecognition:
+    def __init__(self, **kwargs): pass
+    def predict(self, input, batch_size): return iter([Result()])
+""")
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path))
+    p = PaddleOCRProvider(sys.executable, cache_root=str(tmp_path / "cache"))
+    try:
+        assert p.initialize()
+        pid = p._process.pid
+        crop = png_bytes(Image.new("RGB", (40, 40), "white"))
+        assert p.recognize_answer(crop, "integer").normalized_candidate == "72"
+        assert p.recognize_answer(crop, "integer").normalized_candidate == "72"
+        assert p._process.pid == pid
+        assert p.initialization_seconds >= 0
+    finally:
+        p.close()
+    assert not p.available
+
+
+def test_paddle_page_pipeline_times_variants_and_preserves_unknown_confidence(client, monkeypatch):
+    from app.services import pipeline
+    from app.tests.test_api import setup, upload
+
+    class FakePaddle:
+        name, available = "paddle", True
+
+        def recognize_answer(self, image, expected_answer_type, optional_context=None):
+            return provider().parse_result(
+                {"raw_text": "42", "inference_seconds": 0.01}, expected_answer_type
+            )
+
+    monkeypatch.setattr(pipeline, "get_provider", lambda config: FakePaddle())
+    monkeypatch.setattr(
+        pipeline,
+        "settings",
+        pipeline.settings.model_copy(
+            update={
+                "ocr_variants": "color,grayscale,contrast",
+                "paddle_allow_experimental_auto_grade": True,
+            }
+        ),
+    )
+    api, _ = client
+    ids = setup(api)
+    page = upload(api, ids, synthetic=False)
+    response = api.post(f"/submissions/{page['id']}/process")
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["processing"]["ocr_mode"] == "REAL"
+    assert data["processing"]["total_inference_seconds"] == pytest.approx(0.6)
+    assert data["processing"]["average_inference_seconds_per_answer"] == pytest.approx(0.03)
+    assert data["processing"]["total_ocr_seconds"] >= 0
+    first = data["answers"][0]
+    assert first["ocr_confidence"] is None
+    assert first["decision"] == "AUTO_CORRECT"
+    assert first["evidence"]["variants_run"] == 3
+    records = api.get("/evaluation?source=synthetic").json()
+    assert records["report"]["by_provider"]["paddle"][
+        "average_inference_seconds_per_answer"
+    ] == pytest.approx(0.03)
+
+
+def test_missing_paddle_is_visibly_unavailable_in_health(client, monkeypatch):
+    from app.api import routes
+
+    missing = provider()
+    missing.initialize()
+    monkeypatch.setattr(routes, "get_provider", lambda config: missing)
+    api, _ = client
+    response = api.get("/health").json()
+    assert response["ocr_provider"] == "paddle"
+    assert response["status"] == "degraded" and not response["ocr_available"]
+    assert "Paddle unavailable" in response["ocr_diagnostic"]
+
+
+def test_real_gate_includes_paddle_recorded_results(tmp_path):
+    (tmp_path / "records.json").write_text(
+        json.dumps(
+            [
+                {
+                    "answer_type": "integer",
+                    "source": "real_handwriting",
+                    "ocr_provider": "paddle",
+                    "raw_ocr_text": "72",
+                    "student_actual_answer": "72",
+                    "expected_answer": "72",
+                    "transcription_status": "readable",
+                    "verified_grade": "correct",
+                    "system_grade": "correct",
+                    "automated": False,
+                    "inference_seconds": 0.2,
+                }
+            ]
+        )
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "app.evaluation.run",
+            "--dataset",
+            str(tmp_path),
+            "--provider",
+            "recorded",
+            "--require-real",
+            "--json",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["real_handwriting_real_ocr_answers"] == 1
+    assert report["by_provider"]["paddle"]["normalized_ocr_accuracy"] == 1
+    assert report["average_inference_seconds_per_answer"] == 0.2
