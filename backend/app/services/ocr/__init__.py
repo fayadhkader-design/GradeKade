@@ -107,6 +107,8 @@ class MathpixOCRProvider(AnswerRecognition):
             sleep(0.25 * (attempt + 1))
         response.raise_for_status()
         data = response.json()
+        if not isinstance(data, dict):
+            raise TypeError("OCR provider returned invalid response")
         if data.get("error"):
             raise ValueError("OCR provider could not recognize the crop")
         text = data.get("text", "")
@@ -121,7 +123,7 @@ class MathpixOCRProvider(AnswerRecognition):
             raise ValueError("OCR provider returned invalid data")
         lines = data.get("line_data") or []
         if not isinstance(lines, list):
-            raise ValueError("Invalid line data")
+            raise TypeError("Invalid line data")
         metadata = {
             key: data[key]
             for key in ("confidence_rate", "is_handwritten", "is_printed", "version")

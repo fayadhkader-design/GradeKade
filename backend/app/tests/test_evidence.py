@@ -1,8 +1,9 @@
 from PIL import Image, ImageDraw
+
 from app.services.cropping import prepare_variants
-from app.services.quality import assess_photo
 from app.services.grading import grade_evidence
 from app.services.ocr import OCRResult
+from app.services.quality import assess_photo
 
 
 def result(value="42", confidence=0.999, **kw):
@@ -10,7 +11,7 @@ def result(value="42", confidence=0.999, **kw):
 
 
 def test_variant_disagreement_and_missing_score_abstain():
-    d, e = grade_evidence([result(), result("47")], "42", "integer")
+    d, _ = grade_evidence([result(), result("47")], "42", "integer")
     assert d.final_grade is None and d.routing_reason == "variant_disagreement"
     d, _ = grade_evidence([result(confidence=None)], "42", "integer")
     assert d.final_grade is None
