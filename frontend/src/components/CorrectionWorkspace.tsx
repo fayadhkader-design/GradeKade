@@ -11,6 +11,9 @@ export default function CorrectionWorkspace({ id }: { id: string }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [reviewing, setReviewing] = useState(false);
+  const processing = round?.pages.some(
+    (slot) => slot.submission?.status === "processing",
+  );
   const load = useCallback(async () => {
     try {
       setRound(await api<CorrectionRound>(`/correction-rounds/${id}`));
@@ -23,10 +26,11 @@ export default function CorrectionWorkspace({ id }: { id: string }) {
     void load();
   }, [load]);
   useEffect(() => {
-    if (!busy) return;
+    // Processing continues on the server if this screen is reloaded or reopened.
+    if (!busy && !processing) return;
     const timer = setInterval(() => void load(), 1500);
     return () => clearInterval(timer);
-  }, [busy, load]);
+  }, [busy, processing, load]);
   async function upload(source: string, file: File) {
     if (busy) return;
     setBusy("Uploading corrected page");
@@ -115,9 +119,9 @@ export default function CorrectionWorkspace({ id }: { id: string }) {
               Scan the same corrected pages. Only the question numbers listed
               below will be evaluated.
             </p>
-            {busy && (
+            {(busy || processing) && (
               <p role="status" className="notice">
-                {busy}…
+                {busy || "Processing corrections"}…
               </p>
             )}
             <section className="correction-pages">
