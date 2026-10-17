@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 from PIL import Image
 from sqlalchemy import select
 
-from app.models import CorrectionRound, WorksheetSubmission
+from app.models import CorrectionPageSlot, CorrectionRound, QuestionSubmission, WorksheetSubmission
 from app.services.ingestion import png_bytes
 from app.services.ocr import OCRResult
 from app.tests.test_api import SAMPLES, setup
@@ -168,6 +168,47 @@ def test_only_pages_with_unresolved_answers_are_requested(client):
     assert len(round_["pages"]) == 1
     assert round_["pages"][0]["source_submission_id"] == pages[0]["id"]
     assert capture(api, round_, pages[1]).status_code == 422
+
+
+def test_correction_pages_follow_booklet_order_not_slot_insertion_order(client):
+    api, factory = client
+    booklet, pages = initial(api, count=2, synthetic=False)
+    with factory() as db:
+        answer = db.scalar(
+            select(QuestionSubmission).where(
+                QuestionSubmission.worksheet_submission_id == UUID(pages[1]["id"])
+            )
+        )
+        answer.final_grade = "incorrect"
+        db.commit()
+    round_ = start(api, booklet)
+    with factory() as db:
+        slots = db.scalars(
+            select(CorrectionPageSlot).where(
+                CorrectionPageSlot.correction_round_id == UUID(round_["id"])
+            )
+        ).all()
+        for slot in slots:
+            db.delete(slot)
+        db.flush()
+        # Deliberately store page 2 before page 1, independent of random UUIDs.
+        for source in reversed(pages):
+            db.add(
+                CorrectionPageSlot(
+                    correction_round_id=UUID(round_["id"]),
+                    source_submission_id=UUID(source["id"]),
+                )
+            )
+            db.flush()
+        db.commit()
+    for url in [
+        f"/correction-rounds/{round_['id']}",
+        f"/booklets/{booklet['id']}/corrections",
+    ]:
+        result = api.get(url).json()
+        ordered = result["pages"] if "pages" in result else result["rounds"][0]["pages"]
+        assert [slot["page_number"] for slot in ordered] == [1, 2]
+        assert [slot["source_submission_id"] for slot in ordered] == [p["id"] for p in pages]
 
 
 def test_standalone_assignment_attachment_is_idempotent(client):
