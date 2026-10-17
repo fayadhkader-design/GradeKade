@@ -75,7 +75,7 @@ The script refuses real-provider mode, uses original synthetic images, stores no
 
 ## Local pages and limitations
 
-Inspect /booklets, /booklets/{id}, /corrections/{id} and the existing standalone Results action “Track correction rounds.” Phone capture uses the device file/camera picker; it is not a replacement camera redesign. A reload resumes acknowledged server captures, but an unuploaded selected file has no new IndexedDB draft support.
+Inspect /booklets, /booklets/{id}, /corrections/{id} and the existing standalone Results action “Track correction rounds.” Phone capture uses the device file/camera picker; it is not a replacement camera redesign. A reload resumes acknowledged server captures, but an unuploaded selected file has no new IndexedDB draft support. If a captured page is still processing, the correction screen automatically refreshes every 1.5 seconds, including after reopening or reloading it. Temporary refresh failures show a retry action while automatic refresh continues; polling stops once no page is processing and no local action is running. This resumes observation of an existing job, not a new processing request. Required correction pages appear in the original booklet page order regardless of capture-slot insertion order.
 
 Processing remains synchronous with existing quality/alignment/OCR gates and size limits. Wrong-template photos and low-quality captures may require a retake. No automatic page identification, partial credit, cancel/reopen-finalized-round UI, initial auto-grade amendment workflow, or correction capture labor timer was added. Large assignment/history queries are not optimized or paginated yet. OCR errors with usable crops enter human review; clear page failures cannot finalize a round.
 
