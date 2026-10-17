@@ -43,3 +43,12 @@ Live Mathpix API calls and live local PostgreSQL were not tested. GitHub CI has 
 - Local mock-only walkthrough created a completed booklet and verified original answer JSON unchanged. No artificial human review timing was recorded by the script.
 - Screenshots are saved under ignored outputs/. These are synthetic/mock workflow demonstrations, not OCR accuracy evidence.
 - Paddle/Mathpix adapters, grading thresholds and normalization were unchanged during this milestone.
+
+
+## Correction recovery and ordering — October 16, 2026
+
+- Backend: **108 passed, 1 optional local PostgreSQL test skipped**; Ruff passed. The new API regression deliberately stores correction slots in reverse order and checks both round and booklet workflow responses return pages in booklet order.
+- Frontend: **4 unit tests**, TypeScript, production build and Prettier passed.
+- Browser: all **9 existing scenarios passed**; the new recovery scenario passed in its final targeted run after selectors were scoped to the correction workspace. It checks phone-sized navigation/reload during server processing, a simulated HTTP 503, automatic recovery to review, hidden reprocessing/retake controls and polling cessation after processing finishes.
+- Recovery uses simulated server states; the existing end-to-end correction scenario still exercises real local API processing with mock OCR. No live OCR or physical-phone validation was performed.
+- No schema migration, OCR provider, normalization or grading threshold change.
