@@ -28,7 +28,10 @@ def initial_pages(db, booklet_id):
 
 def round_slots(db, round_id):
     return db.scalars(
-        select(CorrectionPageSlot).where(CorrectionPageSlot.correction_round_id == round_id)
+        select(CorrectionPageSlot)
+        .join(WorksheetSubmission, WorksheetSubmission.id == CorrectionPageSlot.source_submission_id)
+        .where(CorrectionPageSlot.correction_round_id == round_id)
+        .order_by(WorksheetSubmission.page_number, CorrectionPageSlot.source_submission_id)
     ).all()
 
 
