@@ -11,6 +11,26 @@ def png_bytes(image: Image.Image) -> bytes:
     return out.getvalue()
 
 
+def _pdf_scale(page, max_pixels: int) -> float:
+    """Account for MuPDF's integer raster bounds before allocating the bitmap."""
+    scale = min(2, (max_pixels / (page.rect.width * page.rect.height)) ** 0.5)
+
+    def fits(value):
+        bounds = (page.rect * fitz.Matrix(value, value)).irect
+        return bounds.width * bounds.height <= max_pixels
+
+    if not fits(scale):
+        low, high = 0.0, scale
+        for _ in range(32):
+            middle = (low + high) / 2
+            if fits(middle):
+                low = middle
+            else:
+                high = middle
+        scale = low
+    return scale
+
+
 def ingest(content: bytes, max_pixels: int = 20_000_000, min_dimension: int = 100) -> Image.Image:
     """Decode actual file contents, not filename or caller-supplied MIME."""
     if not content:
@@ -23,7 +43,7 @@ def ingest(content: bytes, max_pixels: int = 20_000_000, min_dimension: int = 10
                 page = document[0]
                 if page.rect.width <= 0 or page.rect.height <= 0:
                     raise ValueError("Invalid PDF page dimensions")
-                scale = min(2, (max_pixels / (page.rect.width * page.rect.height)) ** 0.5)
+                scale = _pdf_scale(page, max_pixels)
                 pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
                 image = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
         else:
