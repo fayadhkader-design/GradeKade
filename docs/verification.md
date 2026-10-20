@@ -52,3 +52,13 @@ Live Mathpix API calls and live local PostgreSQL were not tested. GitHub CI has 
 - Browser: all **9 existing scenarios passed**; the new recovery scenario passed in its final targeted run after selectors were scoped to the correction workspace. It checks phone-sized navigation/reload during server processing, a simulated HTTP 503, automatic recovery to review, hidden reprocessing/retake controls and polling cessation after processing finishes.
 - Recovery uses simulated server states; the existing end-to-end correction scenario still exercises real local API processing with mock OCR. No live OCR or physical-phone validation was performed.
 - No schema migration, OCR provider, normalization or grading threshold change.
+
+
+## Upload rendering reliability — October 20, 2026
+
+- Fixed PDF render rounding at the configured pixel cap: scale selection checks integer renderer bounds before raster allocation, preserving the existing 2x maximum render scale and first-page-only behavior.
+- Transparent PNG backgrounds now flatten onto white after EXIF orientation. Dark handwriting and opaque colors remain intact; RGBA, grayscale-alpha and palette transparency are covered.
+- Backend: **126 passed, 1 optional local PostgreSQL test skipped**; Ruff lint and formatting checks for changed Python files passed. New tests include PDF page sizes/aspect ratios, bounded output, first-page-only rendering, transparency, orientation, and stored template/submission image responses through the API.
+- Frontend: **4 unit tests, 10 browser scenarios**, TypeScript and production build passed. Existing capture, correction, review and evaluation workflows continue to pass.
+- Synthetic evaluation remains 20 answers, 95% normalized OCR recovery, 75% automated coverage and 15/15 correct automated decisions. These are fixture checks, not real handwriting accuracy measurements.
+- No schema, OCR provider, confidence threshold or upload-limit changes; no model downloads or paid OCR calls.

@@ -38,10 +38,13 @@ def test_transparent_upload_stores_white_paper_with_dark_ink(client, target):
         url, data = "/templates", {"name": "Transparent arithmetic worksheet"}
     else:
         ids = setup(api)
-        url, data = "/submissions", {
-            "student_id": ids["student_id"],
-            "worksheet_template_id": ids["template_id"],
-        }
+        url, data = (
+            "/submissions",
+            {
+                "student_id": ids["student_id"],
+                "worksheet_template_id": ids["template_id"],
+            },
+        )
     response = api.post(url, data=data, files={"file": ("page.png", png_bytes(source), "image/png")})
     assert response.status_code == 201, response.text
     identifier = response.json()["id"]
