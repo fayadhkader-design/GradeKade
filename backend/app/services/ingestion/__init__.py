@@ -55,7 +55,14 @@ def ingest(content: bytes, max_pixels: int = 20_000_000, min_dimension: int = 10
                     if source.width * source.height > max_pixels:
                         raise ValueError("Image exceeds the pixel limit")
                     source.load()
-                    image = ImageOps.exif_transpose(source).convert("RGB")
+                    oriented = ImageOps.exif_transpose(source)
+                    if oriented.mode in {"RGBA", "LA"} or "transparency" in oriented.info:
+                        # A transparent scan represents ink on paper, not ink on black.
+                        rgba = oriented.convert("RGBA")
+                        image = Image.new("RGB", rgba.size, "white")
+                        image.paste(rgba, mask=rgba.getchannel("A"))
+                    else:
+                        image = oriented.convert("RGB")
         if image.width * image.height > max_pixels or min(image.size) < min_dimension:
             raise ValueError("Page must be at least 100px on each side and within the pixel limit")
         return image
