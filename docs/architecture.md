@@ -27,7 +27,7 @@ Submission: uploaded → processing → needs_review/completed, or failed. Expli
 
 ## Local runtime and future changes
 
-Start PostgreSQL with Docker Compose, migrate and seed, then run FastAPI and Next.js. A dev script can use SQLite when Docker is unavailable. API runs on loopback; Next.js proxies API requests so storage and API URLs are same-origin. Uploads are limited to 10 MB and 20 megapixels; only decoded JPEG/PNG/PDF accepted. PDFs render the first page only, with bounded dimensions.
+Start PostgreSQL with Docker Compose, migrate and seed, then run FastAPI and Next.js. A dev script can use SQLite when Docker is unavailable. API runs on loopback; Next.js proxies API requests so storage and API URLs are same-origin. Uploads are limited to 10 MB and 20 megapixels; only decoded JPEG/PNG/PDF accepted. PDFs render the first page only, with bounded dimensions. PDF scale selection checks the renderer's integer raster bounds before allocation, so rounding cannot reject an otherwise valid page at the pixel cap. Transparent PNGs are composited onto white paper after EXIF orientation, preserving dark ink instead of turning transparent backgrounds black. Stored scans remain RGB PNGs.
 
 Before real records: authenticated sessions, enforced organization membership/roles and database RLS, private object storage, retention/deletion policies, consent/vendor review, encrypted transport/backups, rate limits, sandboxed ingestion, durable jobs, confidence calibration on held-out handwriting, monitoring and security review. No FERPA/COPPA claims.
 
