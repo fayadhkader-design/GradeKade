@@ -61,6 +61,16 @@ def test_factory_does_not_silently_fall_back():
     assert not first.initialize() and first.diagnostic
 
 
+def test_factory_preserves_virtual_environment_python_symlink(tmp_path):
+    interpreter = tmp_path / "venv" / "bin" / "python"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.symlink_to(sys.executable)
+    config = Settings(ocr_provider="paddle", paddle_python=interpreter)
+    selected = get_provider(config)
+    assert selected.python == str(interpreter.absolute())
+    assert selected.python != str(interpreter.resolve())
+
+
 def test_agreement_is_opt_in_and_never_a_provider_probability():
     results = [provider().parse_result({"raw_text": "42"}, "integer")] * 3
     decision, evidence = grade_evidence(results, "42", "integer")
@@ -154,7 +164,10 @@ def test_worker_timeout_stops_before_next_crop(monkeypatch, tmp_path):
 
 
 def test_provider_keeps_one_real_worker_for_multiple_requests(tmp_path, monkeypatch):
+    (tmp_path / "paddle.py").write_text('RUNTIME_MARKER = "isolated-paddle-runtime"\n')
     (tmp_path / "paddleocr.py").write_text("""
+import paddle
+assert paddle.RUNTIME_MARKER == "isolated-paddle-runtime"
 print("third-party initialization progress")
 class Result:
     json = {"res": {"rec_formula": "72"}}
