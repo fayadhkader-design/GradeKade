@@ -89,6 +89,7 @@ class PaddleOCRProvider:
             return False
         command = [
             self.python,
+            "-P",  # Do not let this directory's paddle.py shadow the installed Paddle package.
             "-u",
             str(Path(__file__).with_name("paddle_worker.py")),
             "--model-name",
