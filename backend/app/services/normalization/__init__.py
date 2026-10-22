@@ -46,7 +46,7 @@ def parse_answer(raw: str, answer_type: AnswerType) -> Fraction:
     if any(unicodedata.category(char) == "No" for char in stripped):
         raise ValueError("Ambiguous numeric glyph")
     text = unicodedata.normalize("NFKC", stripped).replace("−", "-").replace("–", "-").replace("⁄", "/")
-    for opening, closing in ((r"\(", r"\)"), (r"\[", r"\]"), ("$", "$")):
+    for opening, closing in ((r"\(", r"\)"), (r"\[", r"\]"), ("$$", "$$"), ("$", "$")):
         if text.startswith(opening) and text.endswith(closing):
             text = text[len(opening) : -len(closing)].strip()
             break
@@ -54,7 +54,7 @@ def parse_answer(raw: str, answer_type: AnswerType) -> Fraction:
     text = re.sub(r"^([+-])\s+", r"\1", text)
     text = re.sub(r"\s*/\s*", "/", text)
     text = re.sub(r"\\(?:[dt]?frac)\s*\{\s*([+-]?\d+)\s*\}\s*\{\s*([+-]?\d+)\s*\}", r"\1/\2", text)
-    text = text.removeprefix("$").removesuffix("$").strip()
+    text = text.strip()
     if not re.fullmatch(NUMBER, text) and not (answer_type == "fraction" and re.fullmatch(FRACTION, text)):
         raise ValueError("Not a supported numeric answer")
     try:
