@@ -62,3 +62,13 @@ Live Mathpix API calls and live local PostgreSQL were not tested. GitHub CI has 
 - Frontend: **4 unit tests, 10 browser scenarios**, TypeScript and production build passed. Existing capture, correction, review and evaluation workflows continue to pass.
 - Synthetic evaluation remains 20 answers, 95% normalized OCR recovery, 75% automated coverage and 15/15 correct automated decisions. These are fixture checks, not real handwriting accuracy measurements.
 - No schema, OCR provider, confidence threshold or upload-limit changes; no model downloads or paid OCR calls.
+
+
+## Numeric OCR safety gates — October 22, 2026
+
+- Incomplete/mismatched math delimiters now fail numeric parsing instead of being stripped into a confidently graded number. Balanced single-dollar, double-dollar and LaTeX parenthesis/bracket wrappers remain supported.
+- Grading independently checks supplied normalized OCR candidates against raw text. Contradictions abstain with invalid_ocr_candidate, including agreeing preprocessing variants and experimental unscored Paddle mode. Original observations and system predictions remain available after human review.
+- Backend: **168 passed, 1 optional local PostgreSQL test skipped**; Ruff lint and changed-file formatting checks passed. Added parser, grading and full local API processing/review regressions.
+- Frontend: **4 unit tests, 10 browser scenarios**, TypeScript and production build passed.
+- Synthetic evaluation remains 20 answers, 95% normalized OCR recovery, 75% automation coverage and 15/15 correct automated decisions. These fixture metrics establish no real handwriting accuracy.
+- Existing stored results, provider integrations, confidence thresholds and database schema were not changed. No live OCR API calls or model downloads.
