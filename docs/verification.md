@@ -72,3 +72,13 @@ Live Mathpix API calls and live local PostgreSQL were not tested. GitHub CI has 
 - Frontend: **4 unit tests, 10 browser scenarios**, TypeScript and production build passed.
 - Synthetic evaluation remains 20 answers, 95% normalized OCR recovery, 75% automation coverage and 15/15 correct automated decisions. These fixture metrics establish no real handwriting accuracy.
 - Existing stored results, provider integrations, confidence thresholds and database schema were not changed. No live OCR API calls or model downloads.
+
+
+## First live Paddle CPU setup — October 22, 2026
+
+- Installed the pinned Paddle runtime in the separate backend/.venv-paddle environment (97 compatible packages); PaddlePaddle CPU self-check and uv pip check passed. Downloaded PP-FormulaNet-S into the ignored local model cache.
+- Fixed two live integration defects: virtual-environment Python symlink resolution selected the base interpreter, and the worker script directory allowed GradeKade's paddle.py to shadow the installed runtime. Added regressions for each.
+- Backend suite: **169 passed, 1 optional local PostgreSQL test skipped** with OCR_PROVIDER=mock; Ruff lint and changed-file formatting passed. Model-free CI remains model-free.
+- Actual local CPU inference recognized printed synthetic integer 42, decimal 1.5 and fraction 1/2 with no provider errors. Warm persistent-worker inference observations were about 0.19/0.09/0.09 seconds; these three synthetic crops are not real handwriting accuracy or a page throughput measurement. Provider confidence remains null.
+- Local FastAPI and same-origin frontend health checks both report provider=paddle, available=true, experimental automation=false. Backend listens on 127.0.0.1:8000 and frontend on 127.0.0.1:3000.
+- Local configuration, installed packages, weights and smoke reports are ignored. No Mathpix calls, student records or model weights were committed. Real handwriting validation remains the next step.
