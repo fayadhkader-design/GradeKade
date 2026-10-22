@@ -143,7 +143,8 @@ def get_provider(config: Settings) -> OCRProvider:
         from app.services.ocr.paddle import cached_paddle_provider
 
         return cached_paddle_provider(
-            str(config.paddle_python.resolve()),
+            # Resolving a venv's Python symlink selects the base interpreter instead.
+            str(config.paddle_python.absolute()),
             config.paddle_model_name,
             str(config.paddle_model_dir.resolve()) if config.paddle_model_dir else None,
             str(config.paddle_cache_root.resolve()),
