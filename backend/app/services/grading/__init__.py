@@ -87,7 +87,19 @@ def grade_evidence(
     ambiguous = any(
         r.provider_metadata.get("line_error") or r.provider_metadata.get("line_count", 1) > 1 for r in results
     )
-    agreement = bool(candidates) and candidates[0] is not None and len(set(candidates)) == 1
+    inconsistent = False
+    for result in results:
+        if result.normalized_candidate is None:
+            continue
+        try:
+            canonical = normalize_answer(result.raw_text, answer_type)
+        except ValueError:
+            canonical = None
+        if canonical != result.normalized_candidate:
+            inconsistent = True
+    agreement = (
+        bool(candidates) and candidates[0] is not None and len(set(candidates)) == 1 and not inconsistent
+    )
     known_scores = [r.confidence for r in results if r.confidence is not None]
     scores_available = bool(results) and all(
         isinstance(r.confidence, (int, float))
@@ -125,6 +137,8 @@ def grade_evidence(
         if blank
         else "ambiguous_ocr"
         if ambiguous
+        else "invalid_ocr_candidate"
+        if inconsistent
         else "variant_disagreement"
         if len(results) > 1 and not agreement
         else decision.routing_reason
@@ -157,6 +171,7 @@ def grade_evidence(
     evidence = {
         "outcome": outcome,
         "variant_agreement": agreement,
+        "candidate_raw_text_consistent": bool(results) and not inconsistent,
         "quality_usable": quality_usable,
         "alignment_verified": alignment_verified,
         "alignment_confidence": alignment_confidence,
