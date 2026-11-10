@@ -33,9 +33,9 @@ class Settings(BaseSettings):
     ocr_variants: str = "color"
     ocr_timeout_seconds: float = Field(default=8, gt=0, le=25)
     ocr_retries: int = Field(default=1, ge=0, le=2)
-    photo_blur_minimum: float = Field(default=3, ge=0)
-    max_upload_bytes: int = 10 * 1024 * 1024
-    max_image_pixels: int = 20_000_000
+    photo_blur_minimum: float = Field(default=3, ge=0, allow_inf_nan=False)
+    max_upload_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
+    max_image_pixels: int = Field(default=20_000_000, ge=10_000)
     frontend_origin: str = "http://localhost:3000"
 
 
