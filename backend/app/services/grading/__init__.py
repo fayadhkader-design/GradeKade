@@ -14,6 +14,15 @@ class GradeDecision:
     routing_reason: str
 
 
+def _valid_confidence(value) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and 0 <= value <= 1
+    )
+
+
 def grade_answer(
     raw: str,
     expected: str,
@@ -30,7 +39,7 @@ def grade_answer(
         normalized = normalize_answer(raw, answer_type)
     except ValueError:
         pass
-    valid_confidence = math.isfinite(confidence) and 0 <= confidence <= 1
+    valid_confidence = _valid_confidence(confidence)
     effective = (
         confidence
         if valid_confidence and alignment_verified and normalized is not None and not blank
