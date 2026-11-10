@@ -20,7 +20,7 @@ For example, raw text 2/4 with candidate 1/2 is consistent. Raw text 47 with can
 
 Contradictions route to human review with invalid_ocr_candidate and zero grading confidence. This applies to scored vendors and the experimental unscored Paddle agreement policy. The evidence includes candidate_raw_text_consistent; the original raw text, candidate and system prediction remain stored separately from a human final decision. Other blocking reasons such as provider errors, blank crops and poor photo quality retain priority.
 
-Malformed raw text without a supplied candidate retains the existing invalid_answer routing reason. Correct and incorrect confidence thresholds, alignment checks, blank checks, and template review policies still apply to consistent answers.
+Malformed raw text without a supplied candidate retains the existing invalid_answer routing reason. Correct and incorrect confidence thresholds, alignment checks, blank checks, and template review policies still apply to consistent answers. Confidence must be a finite numeric value in [0, 1]; booleans, strings and other malformed values cannot enable automation. Every variant score is validated before computing the minimum, so mixed or oversized values route to review rather than crashing score comparison. These checks do not change default thresholds or calibrate vendor scores.
 
 ## Scope and limitations
 

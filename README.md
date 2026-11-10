@@ -185,8 +185,8 @@ Backend reads `backend/.env` when launched from `backend/`:
 | `OCR_VARIANTS` | `color`; comma-separated color/grayscale/contrast. Each selected variant adds paid requests; disagreement forces review. |
 | `OCR_TIMEOUT_SECONDS`, `OCR_RETRIES` | `8`, `1`; transient failure retry, bounded per request. |
 | `PHOTO_BLUR_MINIMUM` | `3`; Laplacian variance after resizing to max 1200px; experimental heuristic. |
-| `MAX_UPLOAD_BYTES` | `10485760` (10 MB); frontend proxy has a matching hard limit. |
-| `MAX_IMAGE_PIXELS` | `20000000` (20 MP). |
+| `MAX_UPLOAD_BYTES` | `10485760` (10 MB), must be positive; frontend proxy retains its 10 MB hard limit. |
+| `MAX_IMAGE_PIXELS` | `20000000` (20 MP), at least `10000` so a minimum 100×100 page can fit. |
 | `FRONTEND_ORIGIN` | `http://localhost:3000`; direct API CORS allowlist. |
 
 Frontend server reads `API_BASE_URL` (default `http://127.0.0.1:8000`). Copy `frontend/.env.example` to `.env.local` only to customize it. Requests go through a same-origin, size-bounded server proxy; no browser secrets are needed.
@@ -259,3 +259,5 @@ Next five highest-value engineering steps:
 5. Improve registration diagnostics, template revision/clone tools, and queue pagination/assignment for multi-grader centers.
 
 See [architecture](docs/architecture.md), [privacy foundations](docs/privacy.md), and [verification results](docs/verification.md).
+
+Upload limits are validated when the backend loads configuration; PHOTO_BLUR_MINIMUM must be finite and nonnegative (zero disables that blur threshold). Uploaded file handles close after reading, including interrupted reads and validation failures.
