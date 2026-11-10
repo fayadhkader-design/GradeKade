@@ -18,8 +18,8 @@ def _valid_confidence(value) -> bool:
     return (
         isinstance(value, (int, float))
         and not isinstance(value, bool)
-        and math.isfinite(value)
         and 0 <= value <= 1
+        and math.isfinite(value)
     )
 
 
@@ -109,15 +109,9 @@ def grade_evidence(
     agreement = (
         bool(candidates) and candidates[0] is not None and len(set(candidates)) == 1 and not inconsistent
     )
-    known_scores = [r.confidence for r in results if r.confidence is not None]
-    scores_available = bool(results) and all(
-        isinstance(r.confidence, (int, float))
-        and not isinstance(r.confidence, bool)
-        and math.isfinite(r.confidence)
-        and 0 <= r.confidence <= 1
-        for r in results
-    )
-    score = min(known_scores) if len(known_scores) == len(results) and known_scores else 0
+    scores_available = bool(results) and all(_valid_confidence(r.confidence) for r in results)
+    # Validate every score before comparing values from a swappable provider.
+    score = min(r.confidence for r in results) if scores_available else 0
     if not 2 <= min_agreeing_variants <= 3:
         raise ValueError("Agreement policy requires two or three variants")
     unscored = bool(results) and all(r.confidence is None for r in results)
