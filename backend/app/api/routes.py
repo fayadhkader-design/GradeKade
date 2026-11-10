@@ -217,8 +217,10 @@ def submission_json(db, submission, detail=True):
 
 
 async def read_page(file: UploadFile):
-    content = await file.read(settings.max_upload_bytes + 1)
-    await file.close()
+    try:
+        content = await file.read(settings.max_upload_bytes + 1)
+    finally:
+        await file.close()
     if len(content) > settings.max_upload_bytes:
         raise HTTPException(413, "File exceeds the 10 MB upload limit")
     try:
