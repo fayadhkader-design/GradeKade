@@ -158,7 +158,7 @@ Allow at least 3 GB free. Published model storage is about 224 MB; packages and 
 
 The formula API exposes no answer-level probability: provider confidence stays null and automatic grading is off by default. For a deliberate agreement-based benchmark, set OCR_VARIANTS=color,grayscale,contrast and PADDLE_ALLOW_EXPERIMENTAL_AUTO_GRADE=true (three agreeing variants required by default). The rule score is not calibrated probability. These correlated variants may repeat the same mistake.
 
-CPU inference time/variant count are stored per answer and aggregated per worksheet; no live speed is claimed yet. Installation and model loading were deferred by the user due to disk space. Switch back with OCR_PROVIDER=mock, or OCR_PROVIDER=mathpix plus its credentials, then restart.
+CPU inference time/variant count are stored per answer and aggregated per worksheet. Local Apple Silicon CPU installation and model loading passed on October 22, 2026; printed synthetic integer, decimal and fraction crops were recognized successfully. Real handwriting accuracy and photographed-page throughput remain unmeasured. See [local verification](docs/paddle-ocr.md#verification-and-next-experiment). Switch back with OCR_PROVIDER=mock, or OCR_PROVIDER=mathpix plus its credentials, then restart.
 
 ~~~bash
 uv run python -m app.evaluation.run --dataset /absolute/private/dataset --provider paddle --output ../work/paddle-run --json
@@ -194,11 +194,11 @@ Frontend server reads `API_BASE_URL` (default `http://127.0.0.1:8000`). Copy `fr
 ## Verification and evaluation
 
 ```bash
-./scripts/check.sh
+./scripts/check.sh  # Uses mock OCR regardless of backend/.env.
 # Or independently:
 cd backend
 uv run ruff check app migrations
-uv run pytest -q
+OCR_PROVIDER=mock uv run pytest -q
 uv run python -m app.evaluation.run
 uv run python -m app.evaluation.run --provider configured
 uv run alembic check
