@@ -82,3 +82,13 @@ Live Mathpix API calls and live local PostgreSQL were not tested. GitHub CI has 
 - Actual local CPU inference recognized printed synthetic integer 42, decimal 1.5 and fraction 1/2 with no provider errors. Warm persistent-worker inference observations were about 0.19/0.09/0.09 seconds; these three synthetic crops are not real handwriting accuracy or a page throughput measurement. Provider confidence remains null.
 - Local FastAPI and same-origin frontend health checks both report provider=paddle, available=true, experimental automation=false. Backend listens on 127.0.0.1:8000 and frontend on 127.0.0.1:3000.
 - Local configuration, installed packages, weights and smoke reports are ignored. No Mathpix calls, student records or model weights were committed. Real handwriting validation remains the next step.
+
+
+## Confidence and upload reliability — November 9, 2026
+
+- Direct grading abstains on missing, boolean, nonnumeric, nonfinite and out-of-range confidence instead of raising or accepting malformed evidence. Variant confidence values are all validated before minimum-score comparison; an oversized integer cannot overflow the finite-value check. Default grading thresholds are unchanged.
+- Configuration rejects nonpositive upload byte limits, pixel budgets smaller than the minimum 100×100 page, and nonfinite/negative blur thresholds. Existing defaults remain 10 MB, 20 MP and blur threshold 3.
+- Upload file handles close in a finally block after reads, including interrupted reads and successful/failed validation. Regression tests check bounded reads, invalid images and oversized content.
+- Backend: **206 passed, 1 optional local PostgreSQL test skipped**; Ruff lint and changed-file formatting passed. Frontend: **4 unit tests**, TypeScript and production build passed. Browser: **10 scenarios passed**.
+- The first build completed compilation but stopped with Next.js's known-security-vulnerability notice; the retry passed. The flagged dependency upgrade remains unresolved and is not claimed fixed by these changes.
+- Synthetic evaluation remains 95% normalized OCR recovery and 75% automation coverage on 20 artificial answers. No new real handwriting accuracy claim, provider change, schema migration or student-data collection.
